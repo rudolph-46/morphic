@@ -44,6 +44,11 @@ export function AnimatedLogo({
     }
   }, [animate])
 
+  const glassR = 24
+  const lx = 102
+  const rx = 154
+  const cy = 128
+
   return (
     <svg
       fill="currentColor"
@@ -53,7 +58,51 @@ export function AnimatedLogo({
       className={cn('size-8', className)}
       {...props}
     >
-      <circle cx="128" cy="128" r="128" fill="black"></circle>
+      <circle cx="128" cy="128" r="128" fill="black" />
+      {/* Glasses frame */}
+      <g opacity={0.35}>
+        <circle
+          cx={lx}
+          cy={cy}
+          r={glassR}
+          fill="none"
+          stroke="white"
+          strokeWidth={3}
+        />
+        <circle
+          cx={rx}
+          cy={cy}
+          r={glassR}
+          fill="none"
+          stroke="white"
+          strokeWidth={3}
+        />
+        <path
+          d={`M${lx + glassR - 2} ${cy - 4} Q128 ${cy - 12} ${rx - glassR + 2} ${cy - 4}`}
+          fill="none"
+          stroke="white"
+          strokeWidth={3}
+        />
+        <line
+          x1={lx - glassR}
+          y1={cy - 4}
+          x2={lx - glassR - 16}
+          y2={cy - 8}
+          stroke="white"
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+        <line
+          x1={rx + glassR}
+          y1={cy - 4}
+          x2={rx + glassR + 16}
+          y2={cy - 8}
+          stroke="white"
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+      </g>
+      {/* Eyes */}
       <g
         className={cn(
           'origin-center',
@@ -67,7 +116,7 @@ export function AnimatedLogo({
           ry="18"
           fill="white"
           className={cn(!animate && isBlinking && 'animate-blink')}
-        ></ellipse>
+        />
         <ellipse
           cx="154"
           cy="128"
@@ -75,7 +124,7 @@ export function AnimatedLogo({
           ry="18"
           fill="white"
           className={cn(!animate && isBlinking && 'animate-blink')}
-        ></ellipse>
+        />
       </g>
     </svg>
   )

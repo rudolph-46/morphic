@@ -32,6 +32,7 @@ interface ChatMessagesProps {
   onUpdateMessage?: (messageId: string, newContent: string) => Promise<void>
   reload?: (messageId: string) => Promise<void | string | null | undefined>
   error?: Error | string | null | undefined
+  belowPanel?: React.ReactNode
 }
 
 export function ChatMessages({
@@ -43,7 +44,8 @@ export function ChatMessages({
   scrollContainerRef,
   onUpdateMessage,
   reload,
-  error
+  error,
+  belowPanel
 }: ChatMessagesProps) {
   // Track user-modified states (when user explicitly opens/closes)
   const [userModifiedStates, setUserModifiedStates] = useState<
@@ -169,7 +171,8 @@ export function ChatMessages({
       aria-roledescription="chat messages"
       className={cn(
         'relative size-full pt-14',
-        sections.length > 0 ? 'flex-1 overflow-y-auto' : ''
+        sections.length > 0 ? 'flex-1 overflow-y-auto' : '',
+        sections.length === 0 && belowPanel ? 'hidden' : ''
       )}
     >
       <div className="relative mx-auto w-full max-w-full md:max-w-3xl px-4">

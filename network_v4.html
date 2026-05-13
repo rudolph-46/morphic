@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>SharpFox — Network v4</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0a0a0f; color: #e5e7eb; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  #header { padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1f1f2e; min-height: 56px; gap: 16px; }
+  #header-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; flex-wrap: wrap; }
+  #header h1 { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; flex-shrink: 0; }
+  #breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af; flex-wrap: wrap; }
+  .crumb { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: #161622; border: 1px solid #1f1f2e; border-radius: 14px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .crumb:hover { background: #1f1f2e; }
+  .crumb.current { background: #818cf8; border-color: #818cf8; color: #fff; cursor: default; }
+  .crumb.current:hover { background: #818cf8; }
+  .crumb-sep { color: #4b5563; font-size: 10px; }
+  .crumb-icon { font-size: 11px; opacity: 0.85; }
+  #header .stats { font-size: 12px; color: #9ca3af; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  #mode-toggle { display: flex; align-items: center; background: #161622; border: 1px solid #1f1f2e; border-radius: 8px; padding: 3px; gap: 2px; flex-shrink: 0; }
+  #mode-toggle button { background: transparent; border: none; color: #9ca3af; font-size: 12px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; font-family: inherit; }
+  #mode-toggle button:hover:not(.active):not(:disabled) { color: #e5e7eb; background: #1f1f2e; }
+  #mode-toggle button.active { background: #818cf8; color: #fff; }
+  #mode-toggle button:disabled { opacity: 0.3; cursor: not-allowed; }
+  #stage { flex: 1; position: relative; overflow: hidden; }
+  #canvas { position: absolute; inset: 0; }
+  #year-display { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 220px; font-weight: 700; color: rgba(255,255,255,0.025); letter-spacing: -0.05em; pointer-events: none; user-select: none; transition: opacity 0.3s; }
+  #context-banner { position: absolute; left: 50%; top: 28px; transform: translateX(-50%); padding: 10px 18px; background: rgba(17,17,24,0.92); backdrop-filter: blur(8px); border: 1px solid #2a2a3e; border-radius: 20px; font-size: 13px; color: #e5e7eb; pointer-events: none; opacity: 0; transition: opacity 0.3s; max-width: 80%; text-align: center; line-height: 1.5; z-index: 5; }
+  #context-banner.visible { opacity: 1; }
+  #context-banner strong { color: #fff; font-weight: 600; }
+  #context-banner .accent { color: #818cf8; font-weight: 600; }
+  #empty-state { position: absolute; left: 50%; top: 56%; transform: translate(-50%, 0); font-size: 13px; color: #4b5563; pointer-events: none; user-select: none; opacity: 0; transition: opacity 0.3s; text-align: center; max-width: 400px; }
+  #empty-state.visible { opacity: 1; }
+  /* Person action popover */
+  #person-popover { position: absolute; background: rgba(17,17,24,0.97); backdrop-filter: blur(12px); border: 1px solid #2a2a3e; border-radius: 12px; padding: 14px; min-width: 240px; max-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); pointer-events: auto; opacity: 0; transform: scale(0.92); transition: opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1), transform 0.18s cubic-bezier(0.4, 0, 0.2, 1); z-index: 20; }
+  #person-popover.visible { opacity: 1; transform: scale(1); }
+  #person-popover .pop-header { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #1f1f2e; margin-bottom: 10px; }
+  #person-popover .pop-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #fff; flex-shrink: 0; }
+  #person-popover .pop-info { flex: 1; min-width: 0; }
+  #person-popover .pop-name { font-size: 14px; font-weight: 600; color: #e5e7eb; }
+  #person-popover .pop-headline { font-size: 11px; color: #9ca3af; margin-top: 2px; line-height: 1.4; }
+  #person-popover .pop-context { font-size: 11px; color: #818cf8; margin-bottom: 8px; padding: 6px 8px; background: rgba(129,140,248,0.08); border-radius: 6px; }
+  #person-popover .pop-actions { display: flex; flex-direction: column; gap: 4px; }
+  #person-popover .pop-action { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: #d1d5db; font-size: 12px; text-align: left; border-radius: 6px; cursor: pointer; font-family: inherit; transition: background 0.15s; width: 100%; }
+  #person-popover .pop-action:hover { background: #1f1f2e; }
+  #person-popover .pop-action.primary { color: #818cf8; font-weight: 500; }
+  #person-popover .pop-action .icon { width: 14px; text-align: center; opacity: 0.8; flex-shrink: 0; }
+  #person-popover .pop-arrow { position: absolute; width: 10px; height: 10px; background: rgba(17,17,24,0.97); border-left: 1px solid #2a2a3e; border-top: 1px solid #2a2a3e; transform: rotate(45deg); }
+  #controls { padding: 14px 24px 18px; background: #0d0d14; border-top: 1px solid #1f1f2e; transition: opacity 0.3s; }
+  #controls.dimmed { opacity: 0.35; pointer-events: none; }
+  .timeline-row { display: flex; align-items: center; gap: 16px; }
+  .play-btn { width: 34px; height: 34px; border-radius: 50%; background: #818cf8; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s; }
+  .play-btn:hover { background: #6366f1; }
+  .play-btn:active { transform: scale(0.95); }
+  .play-btn svg { width: 13px; height: 13px; fill: #fff; }
+  .timeline-track { flex: 1; position: relative; height: 32px; }
+  .timeline-axis { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #1f1f2e; transform: translateY(-50%); border-radius: 1px; }
+  .timeline-marker { position: absolute; top: 50%; width: 1px; height: 7px; background: #2a2a3e; transform: translate(-50%, -50%); }
+  .timeline-marker.major { height: 11px; background: #3a3a4e; }
+  .timeline-marker-label { position: absolute; top: calc(50% + 11px); transform: translateX(-50%); font-size: 10px; color: #4b5563; font-variant-numeric: tabular-nums; }
+  .timeline-handle { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: #818cf8; border: 3px solid #0d0d14; transform: translate(-50%, -50%); cursor: grab; transition: box-shadow 0.2s; }
+  .timeline-handle:hover { box-shadow: 0 0 0 6px rgba(129, 140, 248, 0.15); }
+  .timeline-handle:active { cursor: grabbing; }
+  .year-label { position: absolute; top: -2px; transform: translateX(-50%); font-size: 12px; font-weight: 600; color: #818cf8; font-variant-numeric: tabular-nums; pointer-events: none; }
+  #toggle-row { display: flex; gap: 16px; margin-top: 10px; align-items: center; font-size: 11px; color: #9ca3af; }
+  .toggle { display: flex; align-items: center; cursor: pointer; user-select: none; }
+  .toggle input { margin-right: 6px; accent-color: #818cf8; }
+  .speed-select { background: #161622; border: 1px solid #1f1f2e; color: #d1d5db; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit; }
+  #hint { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 8px 14px; background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.3); border-radius: 8px; font-size: 11px; color: #c7d2fe; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+  #hint.visible { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <h1>Ton réseau</h1>
+      <div id="breadcrumb"></div>
+    </div>
+    <div id="mode-toggle">
+      <button id="mode-companies" class="active">🏢 Par entreprise</button>
+      <button id="mode-schools">🎓 Par école</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div id="stage">
+    <div id="year-display"></div>
+    <div id="context-banner"></div>
+    <div id="empty-state"></div>
+    <canvas id="canvas"></canvas>
+    <div id="hint"></div>
+    <div id="person-popover"></div>
+  </div>
+
+  <div id="controls">
+    <div class="timeline-row">
+      <button class="play-btn" id="play-btn" title="Lecture">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" /></svg>
+      </button>
+      <div class="timeline-track" id="track">
+        <div class="timeline-axis"></div>
+      </div>
+    </div>
+    <div id="toggle-row">
+      <label class="toggle"><input type="checkbox" id="toggle-avatars" checked /> Avatars dans les bulles</label>
+      <span style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+        Vitesse :
+        <select class="speed-select" id="speed">
+          <option value="800">Lent</option>
+          <option value="500" selected>Normal</option>
+          <option value="250">Rapide</option>
+        </select>
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Données simulées
+// ─────────────────────────────────────────────────────────────
+const COMPANIES = [
+  { id: 'cap', name: 'Capgemini', industry: 'consulting' },
+  { id: 'bnp', name: 'BNP Paribas', industry: 'bank' },
+  { id: 'orange', name: 'Orange', industry: 'telco' },
+  { id: 'sgbc', name: 'SGBC Cameroun', industry: 'bank' },
+  { id: 'mtn', name: 'MTN Cameroon', industry: 'telco' },
+  { id: 'wenagoo', name: 'Wenagoo', industry: 'startup' },
+  { id: 'station-f', name: 'Station F', industry: 'startup' },
+  { id: 'afd', name: 'AFD', industry: 'public' },
+  { id: 'thales', name: 'Thales', industry: 'consulting' },
+  { id: 'atos', name: 'Atos', industry: 'consulting' },
+  { id: 'sopra', name: 'Sopra Steria', industry: 'consulting' },
+  { id: 'ddc', name: 'Digital Africa', industry: 'startup' },
+  { id: 'safaricom', name: 'Safaricom', industry: 'telco' },
+];
+
+const SCHOOLS = [
+  { id: 'kedge', name: 'KEDGE Bordeaux' },
+  { id: 'enseirb', name: 'ENSEIRB-MATMECA' },
+  { id: 'iut-bdx', name: 'IUT Bordeaux' },
+  { id: 'sup-yde', name: 'Sup\'Ptic Yaoundé' },
+  { id: 'esstic', name: 'ESSTIC' },
+  { id: 'ensp', name: 'ENSP Yaoundé' },
+  { id: 'hec', name: 'HEC Paris' },
+  { id: 'iae-bdx', name: 'IAE Bordeaux' },
+];
+
+const ROLES_DATA = ['Data Analyst', 'Senior Data Analyst', 'Data Engineer', 'BI Consultant'];
+const ROLES_FOUNDER = ['Founder', 'Co-founder & CEO', 'CTO', 'Product Manager'];
+const ROLES_BANK = ['Risk Analyst', 'Compliance Officer', 'Relationship Manager'];
+const ROLES_TELCO = ['Network Engineer', 'B2B Account Manager', 'Digital Lead'];
+const ROLES_DEV = ['Software Engineer', 'Frontend Developer', 'Tech Lead'];
+const ROLES_PUBLIC = ['Senior Consultant', 'Project Manager', 'Policy Analyst'];
+
+const FRENCH_FIRST = ['Sophie','Marc','Julie','Pierre','Camille','Thomas','Léa','Antoine','Marie','Lucas','Emma','Hugo','Chloé','Maxime','Sarah','Nicolas','Alice','Julien','Manon','Romain','Pauline','Alexandre','Inès','Mathieu','Charlotte','Adrien','Élodie','Nathan'];
+const CMR_FIRST = ['Patrick','Aïssatou','Boris','Yvonne','Christian','Estelle','Hervé','Joëlle','Roger','Delphine','Serge','Mireille','Eric','Béatrice','Franck','Solange'];
+const FRENCH_LAST = ['Martin','Bernard','Dubois','Robert','Petit','Durand','Leroy','Moreau','Simon','Laurent','Lefebvre','Roux','David','Bertrand','Morel','Fournier'];
+const CMR_LAST = ['Mbarga','Nguemo','Tchamba','Etoo','Foning','Kameni','Ndongo','Owona','Tchoua','Bidoung','Essomba','Manga'];
+
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+const WORLDS = [
+  { companies: ['cap','sopra','atos','thales','bnp'], schools: ['kedge','enseirb','iut-bdx','iae-bdx'], roles: ROLES_DATA, names: 'fr', size: 45 },
+  { companies: ['mtn','sgbc','orange'], schools: ['sup-yde','ensp','esstic'], roles: ROLES_DEV, names: 'cmr', size: 35 },
+  { companies: ['bnp','sgbc'], schools: ['kedge','iae-bdx','hec'], roles: ROLES_BANK, names: 'fr', size: 28 },
+  { companies: ['wenagoo','station-f','ddc'], schools: ['hec','kedge','enseirb'], roles: ROLES_FOUNDER, names: 'fr', size: 22 },
+  { companies: ['orange','thales','atos','sopra'], schools: ['enseirb','iut-bdx'], roles: ROLES_DEV.concat(ROLES_TELCO), names: 'fr', size: 30 },
+  { companies: ['mtn','safaricom','ddc','wenagoo','afd'], schools: ['sup-yde','ensp','esstic','hec'], roles: ROLES_FOUNDER.concat(ROLES_TELCO), names: 'cmr', size: 20 },
+  { companies: ['afd','cap','sopra'], schools: ['iae-bdx','kedge','hec'], roles: ROLES_PUBLIC, names: 'fr', size: 20 },
+];
+
+const profiles = [];
+let pid = 0;
+WORLDS.forEach(w => {
+  for (let i = 0; i < w.size; i++) {
+    const isCmr = w.names === 'cmr';
+    const first = rand(isCmr ? CMR_FIRST : FRENCH_FIRST);
+    const last = rand(isCmr ? CMR_LAST : FRENCH_LAST);
+    const expCount = randInt(1, 3);
+    const experiences = [];
+    const usedCompanies = new Set();
+    let cursor = randInt(2008, 2014);
+    for (let j = 0; j < expCount; j++) {
+      let companyId = (j === 0 || Math.random() < 0.7) ? rand(w.companies) : rand(COMPANIES).id;
+      if (usedCompanies.has(companyId)) continue;
+      usedCompanies.add(companyId);
+      const startYear = cursor;
+      const duration = randInt(2, 5);
+      const endYear = Math.min(startYear + duration, 2025);
+      experiences.push({
+        companyId,
+        company: COMPANIES.find(c => c.id === companyId).name,
+        title: rand(w.roles),
+        startYear,
+        endYear: endYear === 2025 && Math.random() < 0.4 ? null : endYear,
+      });
+      cursor = endYear + randInt(0, 1);
+      if (cursor > 2025) break;
+    }
+    const eduCount = randInt(1, 2);
+    const educations = [];
+    const usedSchools = new Set();
+    for (let j = 0; j < eduCount; j++) {
+      let schoolId = (j === 0 || Math.random() < 0.8) ? rand(w.schools) : rand(SCHOOLS).id;
+      if (usedSchools.has(schoolId)) continue;
+      usedSchools.add(schoolId);
+      const startYear = randInt(2000, 2015);
+      const gradYear = startYear + randInt(2, 5);
+      educations.push({
+        schoolId,
+        school: SCHOOLS.find(s => s.id === schoolId).name,
+        startYear,
+        endYear: gradYear,
+      });
+    }
+    const initials = (first[0] + last[0]).toUpperCase();
+    profiles.push({
+      id: 'p' + (pid++),
+      name: first + ' ' + last,
+      initials,
+      headline: experiences[0].title + ' @ ' + experiences[0].company,
+      experiences,
+      educations,
+      hue: Math.floor(Math.random() * 360),
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Couleurs et types
+// ─────────────────────────────────────────────────────────────
+const INDUSTRY_COLORS = {
+  consulting: '#818cf8',
+  bank: '#34d399',
+  telco: '#fbbf24',
+  startup: '#f472b6',
+  public: '#60a5fa',
+};
+const SCHOOL_COLOR = '#a78bfa';
+
+function personColor(p) {
+  return `hsl(${p.hue}, 65%, 58%)`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Modèle de navigation : 3 niveaux max
+// ─────────────────────────────────────────────────────────────
+//
+// rootMode: 'companies' | 'schools' — la dimension de départ
+// view: { level: 1|2|3, ...context }
+//   level 1: bulles = entités de la dimension racine
+//   level 2: bulles = entités de la dimension croisée, filtrées par parent
+//   level 3: bulles = personnes, filtrées par parent + grandparent
+
+let rootMode = 'companies'; // 'companies' or 'schools'
+let view = { level: 1 };
+let currentYear = 2018;
+
+// ─────────────────────────────────────────────────────────────
+// Snapshot : génère les bulles selon la vue courante
+// ─────────────────────────────────────────────────────────────
+function snapshot() {
+  if (view.level === 1) {
+    return snapshotLevel1();
+  } else if (view.level === 2) {
+    return snapshotLevel2();
+  } else {
+    return snapshotLevel3();
+  }
+}
+
+function snapshotLevel1() {
+  const buckets = new Map();
+  if (rootMode === 'companies') {
+    profiles.forEach(p => {
+      p.experiences.forEach(exp => {
+        const endY = exp.endYear === null ? 2025 : exp.endYear;
+        if (!(exp.startYear <= currentYear && endY >= currentYear)) return;
+        if (!buckets.has(exp.companyId)) {
+          const c = COMPANIES.find(x => x.id === exp.companyId);
+          buckets.set(exp.companyId, {
+            id: c.id, name: c.name, type: 'company', industry: c.industry,
+            color: INDUSTRY_COLORS[c.industry] || '#9ca3af', persons: [],
+          });
+        }
+        buckets.get(exp.companyId).persons.push({
+          profile: p, role: exp.title, startYear: exp.startYear, endYear: exp.endYear,
+        });
+      });
+    });
+  } else {
+    profiles.forEach(p => {
+      p.educations.forEach(edu => {
+        if (!buckets.has(edu.schoolId)) {
+          const s = SCHOOLS.find(x => x.id === edu.schoolId);
+          buckets.set(edu.schoolId, {
+            id: s.id, name: s.name, type: 'school',
+            color: SCHOOL_COLOR, persons: [],
+          });
+        }
+        buckets.get(edu.schoolId).persons.push({
+          profile: p, role: 'Diplômé·e', startYear: edu.startYear, endYear: edu.endYear,
+        });
+      });
+    });
+  }
+  return finalizeBuckets(buckets);
+}
+
+function snapshotLevel2() {
+  const personIds = view.parentPersonIds;
+  const buckets = new Map();
+  // Si on vient d'une entreprise → afficher les écoles
+  // Si on vient d'une école → afficher les entreprises
+  const targetDim = view.parentEntity.type === 'company' ? 'school' : 'company';
+  profiles.filter(p => personIds.has(p.id)).forEach(p => {
+    if (targetDim === 'school') {
+      p.educations.forEach(edu => {
+        if (!buckets.has(edu.schoolId)) {
+          const s = SCHOOLS.find(x => x.id === edu.schoolId);
+          buckets.set(edu.schoolId, {
+            id: s.id, name: s.name, type: 'school',
+            color: SCHOOL_COLOR, persons: [],
+          });
+        }
+        buckets.get(edu.schoolId).persons.push({
+          profile: p, role: 'Diplômé·e', startYear: edu.startYear, endYear: edu.endYear,
+        });
+      });
+    } else {
+      // Liste TOUTES les expériences (pas filtrées par année — on est plus en mode timeline)
+      p.experiences.forEach(exp => {
+        if (!buckets.has(exp.companyId)) {
+          const c = COMPANIES.find(x => x.id === exp.companyId);
+          buckets.set(exp.companyId, {
+            id: c.id, name: c.name, type: 'company', industry: c.industry,
+            color: INDUSTRY_COLORS[c.industry] || '#9ca3af', persons: [],
+          });
+        }
+        buckets.get(exp.companyId).persons.push({
+          profile: p, role: exp.title, startYear: exp.startYear, endYear: exp.endYear,
+        });
+      });
+    }
+  });
+  return finalizeBuckets(buckets);
+}
+
+function snapshotLevel3() {
+  // Bulles = personnes
+  const personIds = view.parentPersonIds;
+  return profiles.filter(p => personIds.has(p.id)).map(p => ({
+    id: p.id,
+    name: p.name,
+    type: 'person',
+    color: personColor(p),
+    profile: p,
+    persons: [{ profile: p }],
+    count: 1,
+  })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function finalizeBuckets(buckets) {
+  buckets.forEach(b => {
+    const seen = new Map();
+    b.persons.forEach(pe => { if (!seen.has(pe.profile.id)) seen.set(pe.profile.id, pe); });
+    b.persons = Array.from(seen.values());
+  });
+  return Array.from(buckets.values())
+    .filter(b => b.persons.length > 0)
+    .map(b => ({ ...b, count: b.persons.length }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Layout packing
+// ─────────────────────────────────────────────────────────────
+class PackingLayout {
+  constructor(w, h) { this.width = w; this.height = h; this.bubbles = []; }
+  resize(w, h) { this.width = w; this.height = h; }
+  setData(snap, prev, mode) {
+    const cx = this.width / 2, cy = this.height / 2;
+    const prevMap = new Map((prev || []).map(b => [b.id, b]));
+    const isPersonMode = snap.length > 0 && snap[0].type === 'person';
+    let calc;
+    if (isPersonMode) {
+      // Tailles plus uniformes pour les personnes
+      const baseR = Math.min(45, Math.max(22, 280 / Math.sqrt(snap.length)));
+      calc = () => baseR;
+    } else {
+      const minR = 14, maxR = 95;
+      const maxCount = Math.max(...snap.map(s => s.count), 1);
+      calc = c => minR + (maxR - minR) * Math.sqrt(c / maxCount);
+    }
+
+    if (mode === 'replace') {
+      this.bubbles = snap.map((s, i) => {
+        const angle = (i / snap.length) * Math.PI * 2;
+        const dist = randInt(60, 140);
+        return {
+          id: s.id, name: s.name, type: s.type, industry: s.industry, color: s.color,
+          persons: s.persons, count: s.count, profile: s.profile,
+          x: cx + Math.cos(angle) * dist,
+          y: cy + Math.sin(angle) * dist,
+          vx: 0, vy: 0,
+          r: 1, targetR: calc(s.count),
+          opacity: 0,
+        };
+      });
+    } else {
+      this.bubbles = snap.map(s => {
+        const prevB = prevMap.get(s.id);
+        if (prevB) {
+          return { ...prevB, count: s.count, persons: s.persons, name: s.name, color: s.color, type: s.type, industry: s.industry, profile: s.profile, targetR: calc(s.count) };
+        }
+        const angle = Math.random() * Math.PI * 2;
+        const dist = randInt(50, 200);
+        return {
+          id: s.id, name: s.name, type: s.type, industry: s.industry, color: s.color,
+          persons: s.persons, count: s.count, profile: s.profile,
+          x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+          vx: 0, vy: 0, r: 1, targetR: calc(s.count), opacity: 0,
+        };
+      });
+      const newIds = new Set(this.bubbles.map(b => b.id));
+      (prev || []).forEach(p => {
+        if (!newIds.has(p.id) && p.r > 0.5) {
+          this.bubbles.push({ ...p, targetR: 0, count: 0, persons: [], _fading: true });
+        }
+      });
+    }
+  }
+  step() {
+    const cx = this.width / 2, cy = this.height / 2;
+    const damping = 0.85, centerStrength = 0.012;
+    this.bubbles.forEach(b => {
+      b.r += (b.targetR - b.r) * 0.18;
+      const op = b._fading ? 0 : 1;
+      b.opacity = (b.opacity ?? 0) + (op - (b.opacity ?? 0)) * 0.15;
+    });
+    this.bubbles.forEach(b => {
+      if (b.r < 0.5) return;
+      b.vx += (cx - b.x) * centerStrength;
+      b.vy += (cy - b.y) * centerStrength;
+    });
+    for (let i = 0; i < this.bubbles.length; i++) {
+      const a = this.bubbles[i];
+      if (a.r < 0.5) continue;
+      for (let j = i + 1; j < this.bubbles.length; j++) {
+        const b = this.bubbles[j];
+        if (b.r < 0.5) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const minDist = a.r + b.r + 2;
+        if (d < minDist) {
+          const overlap = (minDist - d) / 2;
+          const nx = dx / d, ny = dy / d;
+          a.x -= nx * overlap; a.y -= ny * overlap;
+          b.x += nx * overlap; b.y += ny * overlap;
+          a.vx -= nx * overlap * 0.3; a.vy -= ny * overlap * 0.3;
+          b.vx += nx * overlap * 0.3; b.vy += ny * overlap * 0.3;
+        }
+      }
+    }
+    this.bubbles.forEach(b => {
+      b.vx *= damping; b.vy *= damping;
+      b.x += b.vx; b.y += b.vy;
+    });
+    this.bubbles = this.bubbles.filter(b => !(b._fading && b.r < 0.5));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Rendu
+// ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+let dpr = window.devicePixelRatio || 1;
+let layout;
+
+function resize() {
+  const rect = stage.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (layout) layout.resize(rect.width, rect.height);
+  else layout = new PackingLayout(rect.width, rect.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+let hovered = null;
+
+function draw() {
+  ctx.clearRect(0, 0, layout.width, layout.height);
+  const showAvatars = document.getElementById('toggle-avatars').checked;
+  layout.bubbles.forEach(b => {
+    if (b.r < 0.5) return;
+    const op = b.opacity ?? 1;
+    ctx.globalAlpha = op;
+    if (hovered === b) {
+      ctx.fillStyle = b.color + '22';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r + 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const grad = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.1, b.x, b.y, b.r);
+    grad.addColorStop(0, b.color + 'dd');
+    grad.addColorStop(1, b.color + '88');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = hovered === b ? 2 : 1;
+    ctx.stroke();
+
+    if (b.type === 'person') {
+      // Bulle de personne : avatar central avec initiales, nom dessous
+      ctx.fillStyle = '#fff';
+      ctx.font = `${700} ${Math.min(15, b.r / 2.5)}px -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(b.profile.initials, b.x, b.y - 2);
+      if (b.r > 24) {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = `${500} ${Math.min(10, b.r / 4.5)}px -apple-system, sans-serif`;
+        const firstName = b.profile.name.split(' ')[0];
+        ctx.fillText(firstName, b.x, b.y + b.r * 0.35);
+      }
+    } else {
+      // Bulle d'entité (entreprise ou école)
+      if (b.r > 22) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = `${Math.min(11, b.r / 5)}px -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.type === 'school' ? '🎓' : '🏢', b.x, b.y - b.r * 0.65);
+      }
+      if (showAvatars && b.r > 30 && b.persons.length > 0) {
+        const maxAvatars = Math.min(b.persons.length, Math.floor(b.r / 8));
+        const avatarR = Math.max(5, b.r / 6);
+        const ringR = b.r * 0.55;
+        for (let i = 0; i < maxAvatars; i++) {
+          const angle = (i / maxAvatars) * Math.PI * 2 - Math.PI / 2;
+          const ax = b.x + Math.cos(angle) * ringR;
+          const ay = b.y + Math.sin(angle) * ringR;
+          const p = b.persons[i].profile;
+          ctx.fillStyle = personColor(p);
+          ctx.beginPath();
+          ctx.arc(ax, ay, avatarR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#0a0a0f';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          if (avatarR > 8) {
+            ctx.fillStyle = '#fff';
+            ctx.font = `${600} ${avatarR * 0.9}px -apple-system, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.initials, ax, ay);
+          }
+        }
+      }
+      if (b.r > 18) {
+        ctx.fillStyle = '#fff';
+        ctx.font = `${600} ${Math.min(13, b.r / 3.5)}px -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const labelY = showAvatars && b.r > 30 ? b.y - b.r * 0.15 : b.y - 2;
+        ctx.fillText(b.name, b.x, labelY);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = `${500} ${Math.min(11, b.r / 4.5)}px -apple-system, sans-serif`;
+        ctx.fillText(`${b.count} personne${b.count > 1 ? 's' : ''}`, b.x, labelY + Math.min(14, b.r / 3.2));
+      }
+    }
+    ctx.globalAlpha = 1;
+  });
+}
+function tick() { if (!layout) return; layout.step(); draw(); requestAnimationFrame(tick); }
+tick();
+
+// ─────────────────────────────────────────────────────────────
+// État UI
+// ─────────────────────────────────────────────────────────────
+const yearDisplay = document.getElementById('year-display');
+const contextBanner = document.getElementById('context-banner');
+const emptyState = document.getElementById('empty-state');
+const stats = document.getElementById('stats');
+const breadcrumb = document.getElementById('breadcrumb');
+const controls = document.getElementById('controls');
+const hint = document.getElementById('hint');
+const popover = document.getElementById('person-popover');
+const modeBtnCompanies = document.getElementById('mode-companies');
+const modeBtnSchools = document.getElementById('mode-schools');
+
+let isPlaying = false;
+let playInterval = null;
+
+function updateView({ animateEntry } = {}) {
+  const timelineActive = view.level === 1 && rootMode === 'companies';
+  controls.classList.toggle('dimmed', !timelineActive);
+  yearDisplay.style.opacity = timelineActive ? '1' : '0';
+  modeBtnCompanies.disabled = view.level !== 1;
+  modeBtnSchools.disabled = view.level !== 1;
+
+  const snap = snapshot();
+  layout.setData(snap, layout.bubbles, animateEntry ? 'replace' : 'morph');
+
+  if (timelineActive) yearDisplay.textContent = currentYear;
+
+  emptyState.classList.toggle('visible', snap.length === 0);
+  if (snap.length === 0) {
+    if (view.level === 1 && rootMode === 'companies') {
+      emptyState.textContent = `Personne dans ton réseau n'était actif en ${currentYear}.`;
+    } else if (view.level === 2) {
+      emptyState.textContent = view.parentEntity.type === 'company'
+        ? `Aucune école renseignée pour ces personnes.`
+        : `Aucune entreprise renseignée pour ces personnes.`;
+    } else {
+      emptyState.textContent = 'Aucune donnée à afficher.';
+    }
+  }
+
+  // Banner de contexte
+  if (view.level === 2) {
+    const pe = view.parentEntity;
+    const dimLabel = pe.type === 'company' ? 'écoles' : 'entreprises';
+    const yearStr = pe.year ? ` en <strong>${pe.year}</strong>` : '';
+    contextBanner.innerHTML = `Les <span class="accent">${dimLabel}</span> des <strong>${pe.personCount}</strong> personne${pe.personCount > 1 ? 's' : ''} de ton réseau passées par <strong>${pe.name}</strong>${yearStr}`;
+    contextBanner.classList.add('visible');
+  } else if (view.level === 3) {
+    const pe = view.parentEntity;
+    const gpe = view.grandparentEntity;
+    const yearStr = gpe.year ? ` en ${gpe.year}` : '';
+    contextBanner.innerHTML = `Les <strong>${snap.length}</strong> personne${snap.length > 1 ? 's' : ''} passée${snap.length > 1 ? 's' : ''} par <span class="accent">${pe.name}</span> dans le réseau de <span class="accent">${gpe.name}</span>${yearStr}`;
+    contextBanner.classList.add('visible');
+  } else {
+    contextBanner.classList.remove('visible');
+  }
+
+  // Stats
+  if (view.level === 3) {
+    stats.textContent = `${snap.length} personne${snap.length > 1 ? 's' : ''}`;
+  } else {
+    const totalPeople = new Set(snap.flatMap(s => s.persons.map(pe => pe.profile.id))).size;
+    const dimLabel = (view.level === 1 && rootMode === 'schools') || (view.level === 2 && view.parentEntity.type === 'company')
+      ? 'école' : 'entreprise';
+    const dimPlural = snap.length > 1 ? 's' : '';
+    const yearStr = timelineActive ? ` en ${currentYear}` : '';
+    stats.textContent = `${snap.length} ${dimLabel}${dimPlural} · ${totalPeople} personne${totalPeople > 1 ? 's' : ''}${yearStr}`;
+  }
+
+  renderBreadcrumb();
+  closePopover();
+
+  // Hint pédagogique
+  if (animateEntry) {
+    if (view.level === 1) {
+      const txt = rootMode === 'companies'
+        ? '💡 Clique sur une entreprise pour voir les écoles de ses membres'
+        : '💡 Clique sur une école pour voir les entreprises de ses diplômés';
+      showHint(txt);
+    } else if (view.level === 2) {
+      showHint('💡 Clique sur une bulle pour voir les personnes qui s\'y trouvent');
+    } else if (view.level === 3) {
+      showHint('💡 Clique sur une personne pour voir les actions disponibles');
+    }
+  }
+}
+
+let hintTimeout = null;
+function showHint(text) {
+  hint.textContent = text;
+  hint.classList.add('visible');
+  if (hintTimeout) clearTimeout(hintTimeout);
+  hintTimeout = setTimeout(() => hint.classList.remove('visible'), 4000);
+}
+
+function renderBreadcrumb() {
+  breadcrumb.innerHTML = '';
+  // Niveau 1 (toujours présent)
+  const root = document.createElement('div');
+  root.className = 'crumb' + (view.level === 1 ? ' current' : '');
+  const rootIcon = rootMode === 'companies' ? '🏢' : '🎓';
+  const rootLabel = rootMode === 'companies' ? `Entreprises${view.level === 1 ? ` (${currentYear})` : ''}` : 'Écoles';
+  root.innerHTML = `<span class="crumb-icon">${rootIcon}</span> ${rootLabel}`;
+  if (view.level !== 1) {
+    root.addEventListener('click', () => { view = { level: 1 }; updateView({ animateEntry: true }); });
+  }
+  breadcrumb.appendChild(root);
+
+  if (view.level >= 2) {
+    breadcrumb.appendChild(makeSep());
+    const c2 = document.createElement('div');
+    c2.className = 'crumb' + (view.level === 2 ? ' current' : '');
+    const pe = view.parentEntity;
+    const icon = pe.type === 'company' ? '🏢' : '🎓';
+    const yearLabel = pe.year ? ` · ${pe.year}` : '';
+    c2.innerHTML = `<span class="crumb-icon">${icon}</span> ${pe.name}${yearLabel}`;
+    if (view.level === 3) {
+      c2.addEventListener('click', () => {
+        view = { level: 2, parentEntity: view.grandparentEntity, parentPersonIds: view.grandparentPersonIds };
+        updateView({ animateEntry: true });
+      });
+    }
+    breadcrumb.appendChild(c2);
+  }
+
+  if (view.level === 3) {
+    breadcrumb.appendChild(makeSep());
+    const c3 = document.createElement('div');
+    c3.className = 'crumb current';
+    const pe = view.parentEntity;
+    const icon = pe.type === 'company' ? '🏢' : '🎓';
+    c3.innerHTML = `<span class="crumb-icon">${icon}</span> ${pe.name}`;
+    breadcrumb.appendChild(c3);
+  }
+}
+function makeSep() { const s = document.createElement('span'); s.className = 'crumb-sep'; s.textContent = '›'; return s; }
+
+// ─────────────────────────────────────────────────────────────
+// Interaction : hover, click selon le niveau
+// ─────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  let found = null;
+  for (let i = layout.bubbles.length - 1; i >= 0; i--) {
+    const b = layout.bubbles[i];
+    if (b.r < 5) continue;
+    if (Math.hypot(x - b.x, y - b.y) <= b.r) { found = b; break; }
+  }
+  if (found !== hovered) {
+    hovered = found;
+    canvas.style.cursor = found ? 'pointer' : 'default';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if (!hovered) {
+    closePopover();
+    return;
+  }
+  if (view.level === 1) {
+    // Drill vers niveau 2
+    const personIds = new Set(hovered.persons.map(p => p.profile.id));
+    view = {
+      level: 2,
+      parentEntity: {
+        type: hovered.type,
+        name: hovered.name,
+        personCount: personIds.size,
+        year: rootMode === 'companies' ? currentYear : null,
+      },
+      parentPersonIds: personIds,
+    };
+    updateView({ animateEntry: true });
+  } else if (view.level === 2) {
+    // Drill vers niveau 3 (personnes)
+    const personIds = new Set(hovered.persons.map(p => p.profile.id));
+    view = {
+      level: 3,
+      parentEntity: {
+        type: hovered.type,
+        name: hovered.name,
+        personCount: personIds.size,
+      },
+      parentPersonIds: personIds,
+      grandparentEntity: view.parentEntity,
+      grandparentPersonIds: view.parentPersonIds,
+    };
+    updateView({ animateEntry: true });
+  } else {
+    // Niveau 3 : clic sur une personne → popover d'actions
+    showPersonPopover(hovered);
+  }
+});
+
+function showPersonPopover(bubble) {
+  const p = bubble.profile;
+  const rect = canvas.getBoundingClientRect();
+  // Position : à droite de la bulle, ou à gauche si pas de place
+  const screenX = bubble.x + rect.left;
+  const screenY = bubble.y + rect.top;
+  const popW = 260;
+  const stageRect = stage.getBoundingClientRect();
+  let left = bubble.x + bubble.r + 12;
+  let placeLeft = false;
+  if (left + popW > stageRect.width - 12) {
+    left = bubble.x - bubble.r - popW - 12;
+    placeLeft = true;
+  }
+  let top = bubble.y - 60;
+  if (top < 60) top = 60;
+
+  const ctx = view.parentEntity;
+  const gctx = view.grandparentEntity;
+  const ctxText = `Vue depuis ${ctx.name}${gctx.year ? ` (${gctx.name} en ${gctx.year})` : ` de ${gctx.name}`}`;
+
+  popover.innerHTML = `
+    <div class="pop-header">
+      <div class="pop-avatar" style="background: linear-gradient(135deg, hsl(${p.hue}, 65%, 58%), hsl(${(p.hue + 40) % 360}, 65%, 48%))">${p.initials}</div>
+      <div class="pop-info">
+        <div class="pop-name">${p.name}</div>
+        <div class="pop-headline">${p.headline}</div>
+      </div>
+    </div>
+    <div class="pop-context">${ctxText}</div>
+    <div class="pop-actions">
+      <button class="pop-action primary"><span class="icon">✉</span> Reprendre contact</button>
+      <button class="pop-action"><span class="icon">↗</span> Voir le profil LinkedIn</button>
+      <button class="pop-action"><span class="icon">★</span> Ajouter aux favoris</button>
+      <button class="pop-action"><span class="icon">⏱</span> Voir sa trajectoire</button>
+    </div>
+  `;
+  popover.style.left = left + 'px';
+  popover.style.top = top + 'px';
+  popover.classList.add('visible');
+  popover.dataset.personId = p.id;
+}
+
+function closePopover() {
+  popover.classList.remove('visible');
+  delete popover.dataset.personId;
+}
+
+// Click outside to close popover
+document.addEventListener('click', e => {
+  if (!popover.classList.contains('visible')) return;
+  if (popover.contains(e.target)) return;
+  if (e.target === canvas && hovered) return; // clic sur bulle, géré ailleurs
+  if (e.target === canvas && !hovered) closePopover();
+});
+
+// Escape key navigation
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (popover.classList.contains('visible')) {
+      closePopover();
+    } else if (view.level === 3) {
+      view = { level: 2, parentEntity: view.grandparentEntity, parentPersonIds: view.grandparentPersonIds };
+      updateView({ animateEntry: true });
+    } else if (view.level === 2) {
+      view = { level: 1 };
+      updateView({ animateEntry: true });
+    }
+  }
+});
+
+// Mode toggle (Entreprises / Écoles)
+modeBtnCompanies.addEventListener('click', () => {
+  if (view.level !== 1 || rootMode === 'companies') return;
+  rootMode = 'companies';
+  modeBtnCompanies.classList.add('active');
+  modeBtnSchools.classList.remove('active');
+  updateView({ animateEntry: true });
+});
+modeBtnSchools.addEventListener('click', () => {
+  if (view.level !== 1 || rootMode === 'schools') return;
+  rootMode = 'schools';
+  modeBtnSchools.classList.add('active');
+  modeBtnCompanies.classList.remove('active');
+  updateView({ animateEntry: true });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Timeline
+// ─────────────────────────────────────────────────────────────
+const YEAR_MIN = 2008, YEAR_MAX = 2025;
+const yearRange = YEAR_MAX - YEAR_MIN;
+const track = document.getElementById('track');
+(function build() {
+  for (let y = YEAR_MIN; y <= YEAR_MAX; y++) {
+    const m = document.createElement('div');
+    m.className = 'timeline-marker' + (y % 2 === 0 ? ' major' : '');
+    m.style.left = `${((y - YEAR_MIN) / yearRange) * 100}%`;
+    track.appendChild(m);
+    if (y % 2 === 0) {
+      const l = document.createElement('div');
+      l.className = 'timeline-marker-label';
+      l.textContent = y;
+      l.style.left = `${((y - YEAR_MIN) / yearRange) * 100}%`;
+      track.appendChild(l);
+    }
+  }
+  const h = document.createElement('div');
+  h.className = 'timeline-handle';
+  h.id = 'handle';
+  track.appendChild(h);
+  const yl = document.createElement('div');
+  yl.className = 'year-label';
+  yl.id = 'handle-label';
+  track.appendChild(yl);
+})();
+const handle = document.getElementById('handle');
+const handleLabel = document.getElementById('handle-label');
+
+function setYear(y) {
+  currentYear = Math.max(YEAR_MIN, Math.min(YEAR_MAX, Math.round(y)));
+  const pct = ((currentYear - YEAR_MIN) / yearRange) * 100;
+  handle.style.left = pct + '%';
+  handleLabel.style.left = pct + '%';
+  handleLabel.textContent = currentYear;
+  if (view.level === 1 && rootMode === 'companies') updateView();
+}
+
+let dragging = false;
+function onDrag(e) {
+  if (!dragging) return;
+  if (!(view.level === 1 && rootMode === 'companies')) return;
+  const rect = track.getBoundingClientRect();
+  const px = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+  const pct = Math.max(0, Math.min(1, px / rect.width));
+  setYear(YEAR_MIN + pct * yearRange);
+}
+handle.addEventListener('mousedown', e => { if (view.level === 1 && rootMode === 'companies') { dragging = true; e.preventDefault(); } });
+track.addEventListener('mousedown', e => {
+  if (e.target === handle) return;
+  if (!(view.level === 1 && rootMode === 'companies')) return;
+  const rect = track.getBoundingClientRect();
+  setYear(YEAR_MIN + ((e.clientX - rect.left) / rect.width) * yearRange);
+  dragging = true;
+});
+window.addEventListener('mousemove', onDrag);
+window.addEventListener('mouseup', () => { dragging = false; });
+handle.addEventListener('touchstart', e => { if (view.level === 1 && rootMode === 'companies') { dragging = true; e.preventDefault(); } });
+window.addEventListener('touchmove', onDrag);
+window.addEventListener('touchend', () => { dragging = false; });
+
+const playBtn = document.getElementById('play-btn');
+function togglePlay() {
+  if (!(view.level === 1 && rootMode === 'companies')) return;
+  isPlaying = !isPlaying;
+  playBtn.innerHTML = isPlaying
+    ? '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>'
+    : '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" /></svg>';
+  if (isPlaying) {
+    if (currentYear >= YEAR_MAX) setYear(YEAR_MIN);
+    const speed = parseInt(document.getElementById('speed').value, 10);
+    playInterval = setInterval(() => {
+      if (currentYear >= YEAR_MAX) {
+        clearInterval(playInterval); isPlaying = false;
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" /></svg>';
+        return;
+      }
+      setYear(currentYear + 1);
+    }, speed);
+  } else { clearInterval(playInterval); }
+}
+playBtn.addEventListener('click', togglePlay);
+document.getElementById('speed').addEventListener('change', () => { if (isPlaying) { togglePlay(); togglePlay(); } });
+document.getElementById('toggle-avatars').addEventListener('change', () => {});
+
+// Init
+setYear(2018);
+updateView({ animateEntry: true });
+</script>
+</body>
+</html>

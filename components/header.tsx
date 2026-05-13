@@ -26,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ user }) => {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const isRootPage = pathname === '/'
 
+  if (!user && isRootPage) return null
+
   return (
     <>
       <header
