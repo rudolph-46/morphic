@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Inter as FontSans } from 'next/font/google'
+import { Inter as FontSans, Geist } from 'next/font/google'
 
 import { Analytics } from '@vercel/analytics/next'
 
@@ -21,10 +21,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 
 import './globals.css'
 
-const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans'
-})
+const geist = Geist({subsets:['latin'],variable:'--font-sans'})
 
 const title = 'Melron'
 const description =
@@ -71,14 +68,14 @@ export default async function RootLayout({
   const userId = user?.id ?? (await getCurrentUserId())
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body
         className={cn(
           'font-sans antialiased',
           userId
             ? 'fixed inset-0 flex flex-col overflow-hidden'
             : 'min-h-screen flex flex-col',
-          fontSans.variable
+          geist.variable
         )}
       >
         <ThemeProvider
