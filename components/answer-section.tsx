@@ -11,9 +11,11 @@ import type {
   UITools
 } from '@/lib/types/ai'
 
+import { AnswerCard, parseAnswerCards } from './answer-card'
 import { CollapsibleMessage } from './collapsible-message'
 import { MarkdownMessage } from './message'
 import { MessageActions } from './message-actions'
+import { SourcesPanel } from './sources-panel'
 
 export type AnswerSectionProps = {
   content: string
@@ -66,9 +68,23 @@ export function AnswerSection({
     >
       {content && (
         <div className="flex flex-col gap-1">
-          <MarkdownMessage message={content} citationMaps={citationMaps} />
+          {(() => {
+            const { cards, cleaned } = parseAnswerCards(content)
+            return (
+              <>
+                <SourcesPanel citationMaps={citationMaps} />
+                {cards.map((card, i) => (
+                  <AnswerCard key={i} data={card} />
+                ))}
+                <MarkdownMessage
+                  message={cleaned}
+                  citationMaps={citationMaps}
+                />
+              </>
+            )
+          })()}
           <MessageActions
-            message={content} // Provide original message; copy path remaps citations
+            message={content}
             messageId={messageId}
             traceId={metadata?.traceId}
             feedbackScore={metadata?.feedbackScore}

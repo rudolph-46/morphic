@@ -72,18 +72,35 @@ function formatDate(d?: string): string | null {
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
-function PostCard({ post }: { post: Post }) {
+function PostCard({
+  post,
+  index,
+  toolCallId
+}: {
+  post: Post
+  index: number
+  toolCallId?: string
+}) {
   const date = formatDate(post.date)
 
-  return (
-    <div className="rounded-lg border p-3 space-y-2">
+  const cardClass =
+    'rounded-lg border p-3 space-y-2 transition-colors group ' +
+    (post.share_url ? 'hover:border-foreground/30 cursor-pointer' : '')
+
+  const content = (
+    <>
       <div className="flex items-start gap-2">
-        <EntityAvatar
-          name={post.author_name ?? '?'}
-          src={post.author_picture_url}
-          kind="person"
-          size="sm"
-        />
+        <div className="relative shrink-0">
+          <EntityAvatar
+            name={post.author_name ?? '?'}
+            src={post.author_picture_url}
+            kind="person"
+            size="sm"
+          />
+          <span className="absolute -top-1.5 -left-1.5 size-4 rounded-full bg-foreground text-background text-[9px] font-semibold tabular-nums flex items-center justify-center ring-2 ring-background">
+            {index}
+          </span>
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium truncate">
@@ -102,14 +119,7 @@ function PostCard({ post }: { post: Post }) {
           )}
         </div>
         {post.share_url && (
-          <a
-            href={post.share_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <ExternalLink className="size-3.5" />
-          </a>
+          <ExternalLink className="size-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
         )}
       </div>
 
@@ -139,11 +149,39 @@ function PostCard({ post }: { post: Post }) {
           </span>
         )}
       </div>
+    </>
+  )
+
+  if (post.share_url) {
+    return (
+      <a
+        id={toolCallId ? `cite-${toolCallId}-${index}` : undefined}
+        href={post.share_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cardClass}
+      >
+        {content}
+      </a>
+    )
+  }
+  return (
+    <div
+      id={toolCallId ? `cite-${toolCallId}-${index}` : undefined}
+      className={cardClass}
+    >
+      {content}
     </div>
   )
 }
 
-export function MelronNetworkUpdateResult({ data }: { data: unknown }) {
+export function MelronNetworkUpdateResult({
+  data,
+  toolCallId
+}: {
+  data: unknown
+  toolCallId?: string
+}) {
   const d = (data ?? {}) as SmartNetworkUpdateOutput
   const posts = d.posts ?? []
   const briefing = d.feed_briefing
@@ -182,7 +220,12 @@ export function MelronNetworkUpdateResult({ data }: { data: unknown }) {
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {topPosts.map((post, i) => (
-              <PostCard key={i} post={post} />
+              <PostCard
+                key={i}
+                post={post}
+                index={i + 1}
+                toolCallId={toolCallId}
+              />
             ))}
           </div>
         </div>

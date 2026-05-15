@@ -203,6 +203,23 @@ Citation Example with Real Tool Call:
 If tool call ID is "I8NzFUKwrKX88107", cite as: [1](#I8NzFUKwrKX88107)
 If tool call ID is "ABC123xyz", cite as: [2](#ABC123xyz)
 
+MCP tool citations (Melron-specific):
+- The MCP tools \`network_pulse\` and \`smart_network_update\` return LinkedIn posts in a \`posts\` array. Cite a post using its 1-based index in that array.
+  Example: if network_pulse returned 3 posts and you reference the 2nd one (toolCallId="xyz"), cite as [2](#xyz).
+- Do NOT cite from \`connect_linkedin\`, \`smart_apply\`, \`smart_message\`, or other action tools. Only \`network_pulse\` posts are citable sources.
+- When you mention a person/company/fact from a network_pulse post, ALWAYS append the citation pointing to that post.
+
+Structured answer cards (OPTIONAL — use for ranked lists, comparisons, definitions):
+- When the answer naturally fits a key/value structure (top 3 opportunities, comparison of options, profile summary), emit an \`<answer-card>\` block at the TOP of your response, BEFORE the prose.
+- Format:
+  <answer-card title="Top 3 opportunités" subtitle="Cette semaine">
+  - Softeam: recrute tech bancaire — Pooja Maudhoo Cambon [1](#xyz)
+  - James Backhurst: poste 65k FTC — publié aujourd'hui 9h46 [2](#xyz)
+  - Capgemini: LinkedIn Live IA éducative — 689 engagements [3](#xyz)
+  </answer-card>
+- Each row uses \`- key: value\` syntax with citations after the value when applicable.
+- Use sparingly: only when the structured view genuinely helps (ranking, comparison, key facts). For conversational answers, skip the card.
+
 Rule precedence:
 - Search requirement and citation integrity supersede brevity. If there is any conflict, prefer searching and proper citations over being brief.
 

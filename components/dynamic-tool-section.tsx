@@ -111,8 +111,15 @@ function renderToolBody(
   if (tool.toolName === 'smart_message' && parsed) {
     return <MelronMessageResult data={parsed} />
   }
-  if (tool.toolName === 'smart_network_update' && parsed) {
-    return <MelronNetworkUpdateResult data={parsed} />
+  if (
+    (tool.toolName === 'smart_network_update' ||
+      tool.toolName === 'network_pulse') &&
+    parsed
+  ) {
+    return <MelronNetworkUpdateResult data={parsed} toolCallId={tool.toolCallId} />
+  }
+  if ((tool.toolName === 'find_people' || tool.toolName === 'smart_people_search') && parsed) {
+    return <MelronPeopleSearchResult data={parsed} />
   }
   return (
     <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-96">
