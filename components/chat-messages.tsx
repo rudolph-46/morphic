@@ -137,19 +137,21 @@ export function ChatMessages({
       return true
     }
 
-    // Dynamic (MCP) tools — open by default (results shown as cards)
+    // Dynamic (MCP) tools — collapsed by default (raw JSON output is noisy).
+    // The model's text response interprets the result; user can expand to debug.
     if (partType === 'dynamic-tool') {
-      return true
+      return false
     }
 
-    // For tool-invocations, default to open
+    // For tool-invocations, default to open (these render as rich cards)
     if (partType === 'tool-invocation') {
       return true
     }
 
-    // For reasoning, auto-collapse if there's a next part in the same message
+    // For reasoning, collapsed by default — the user gets the final answer in
+    // the text part. They can expand to see the thought process.
     if (partType === 'reasoning') {
-      return !hasNextPart
+      return false
     }
 
     // For other types (like text), default to open
