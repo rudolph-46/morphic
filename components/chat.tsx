@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls
+} from 'ai'
 import { toast } from 'sonner'
 
 import { ChatProvider, type SelectedItem } from '@/lib/contexts/chat-context'
@@ -162,6 +165,9 @@ export function Chat({
       }
     }),
     messages: savedMessages,
+    // After the user answers an askQuestion (or any tool with addToolResult),
+    // automatically continue the conversation so the agent can finish its work.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: () => {
       window.dispatchEvent(new CustomEvent('chat-history-updated'))
     },
@@ -627,6 +633,32 @@ export function Chat({
           isCloudDeployment={isCloudDeployment}
           modelSelectorData={modelSelectorData}
           sections={sections}
+          addToolResult={({ toolCallId, result }) => {
+            // Reuse the same name-resolution path as ChatMessages
+            let toolName = 'unknown'
+            outerLoop: for (const message of messages) {
+              if (!message.parts) continue
+              for (const part of message.parts) {
+                if (isToolCallPart(part) && part.toolCallId === toolCallId) {
+                  toolName = part.toolName
+                  break outerLoop
+                } else if (
+                  isToolTypePart(part) &&
+                  part.toolCallId === toolCallId
+                ) {
+                  toolName = part.type.substring(5)
+                  break outerLoop
+                } else if (
+                  isDynamicToolPart(part) &&
+                  part.toolCallId === toolCallId
+                ) {
+                  toolName = part.toolName
+                  break outerLoop
+                }
+              }
+            }
+            addToolResult({ tool: toolName, toolCallId, output: result })
+          }}
         />
         <DragOverlay visible={dragHandlers.isDragging} />
         <ErrorModal

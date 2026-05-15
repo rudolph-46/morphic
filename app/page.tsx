@@ -23,6 +23,18 @@ export default async function Page() {
         <div className="relative flex min-h-screen flex-col overflow-hidden bg-white">
           <div className="absolute inset-0 [background-image:linear-gradient(to_right,#e4e4e7_1px,transparent_1px),linear-gradient(to_bottom,#e4e4e7_1px,transparent_1px)] [background-size:40px_40px]" />
           <div className="pointer-events-none absolute inset-0 bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
+
+          {/* Animated peep crowd along the bottom of the hero */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[40vh]">
+            <CrowdCanvas
+              src="/images/peeps/all-peeps.png"
+              rows={6}
+              cols={5}
+              speed={12}
+              className="absolute bottom-0 h-full w-full"
+            />
+          </div>
+
           <LandingNavbar />
           <div className="relative z-10 flex flex-1 items-center justify-center">
             <ArtifactProvider>

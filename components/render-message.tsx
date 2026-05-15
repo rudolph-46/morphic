@@ -162,21 +162,25 @@ export function RenderMessage({
         />
       )
     } else if (part.type === 'tool-askQuestion') {
-      // askQuestion must stay visible — render inline, never collapse
-      flushBuffer(`pre-ask-${index}`)
-      elements.push(
-        <ResearchProcessSection
-          key={`${messageId}-ask-${index}`}
-          message={message}
-          messageId={messageId}
-          parts={[part]}
-          getIsOpen={getIsOpen}
-          onOpenChange={onOpenChange}
-          status={status}
-          addToolResult={addToolResult}
-          hasSubsequentText={false}
-        />
-      )
+      // Pending askQuestion is rendered above the input by ChatPanel.
+      // We only render the completed view inline.
+      const state = (part as any).state
+      if (state === 'output-available') {
+        flushBuffer(`pre-ask-${index}`)
+        elements.push(
+          <ResearchProcessSection
+            key={`${messageId}-ask-${index}`}
+            message={message}
+            messageId={messageId}
+            parts={[part]}
+            getIsOpen={getIsOpen}
+            onOpenChange={onOpenChange}
+            status={status}
+            addToolResult={addToolResult}
+            hasSubsequentText={false}
+          />
+        )
+      }
     } else if (
       part.type === 'reasoning' ||
       part.type?.startsWith?.('tool-') ||

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Textarea from 'react-textarea-autosize'
 import { useRouter } from 'next/navigation'
 
@@ -19,7 +19,14 @@ import { useChatContext } from '@/lib/contexts/chat-context'
 import { useHasUser } from '@/lib/contexts/user-context'
 import { SHORTCUT_EVENTS } from '@/lib/keyboard-shortcuts'
 import { UploadedFile } from '@/lib/types'
-import type { UIDataTypes, UIMessage, UITools } from '@/lib/types/ai'
+import type {
+  ToolPart,
+  UIDataTypes,
+  UIMessage,
+  UITools
+} from '@/lib/types/ai'
+
+import { QuestionConfirmation } from './question-confirmation'
 import type { ModelSelectorData } from '@/lib/types/model-selector'
 import { cn } from '@/lib/utils'
 
@@ -68,6 +75,8 @@ interface ChatPanelProps {
     userMessage: UIMessage
     assistantMessages: UIMessage[]
   }[]
+  /** Callback used to answer the askQuestion tool (renders above the input). */
+  addToolResult?: (params: { toolCallId: string; result: any }) => void
 }
 
 export function ChatPanel({
@@ -89,7 +98,8 @@ export function ChatPanel({
   isGuest = false,
   isCloudDeployment = false,
   modelSelectorData,
-  sections = []
+  sections = [],
+  addToolResult
 }: ChatPanelProps) {
   const router = useRouter()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -102,6 +112,28 @@ export function ChatPanel({
   const { selectedItem, setSelectedItem } = useChatContext()
   const hasUser = useHasUser()
   const isLoading = status === 'submitted' || status === 'streaming'
+
+  // Detect a pending askQuestion tool call in the last assistant message
+  // so we can render the answer card overlaying the input area.
+  const pendingAskQuestion = useMemo(() => {
+    if (!messages.length || !addToolResult) return null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role !== 'assistant' || !m.parts) continue
+      for (const part of m.parts as any[]) {
+        if (
+          part?.type === 'tool-askQuestion' &&
+          (part.state === 'input-streaming' ||
+            part.state === 'input-available')
+        ) {
+          return part as ToolPart<'askQuestion'>
+        }
+      }
+      // Stop at the most recent assistant turn
+      break
+    }
+    return null
+  }, [messages, addToolResult])
   const hasAvailableModels =
     isCloudDeployment || modelSelectorData?.hasAvailableModels !== false
 
@@ -277,11 +309,36 @@ export function ChatPanel({
         {/* Message navigation - always visible */}
         {sections.length > 1 && <MessageNavigationDots sections={sections} />}
 
+        {/* Pending askQuestion: render the answer card in place of (above)
+            the regular text input. */}
+        {pendingAskQuestion && addToolResult && (
+          <div className="mb-2">
+            <QuestionConfirmation
+              toolInvocation={pendingAskQuestion}
+              onConfirm={(toolCallId, approved, response) => {
+                addToolResult({
+                  toolCallId,
+                  result: approved
+                    ? response
+                    : {
+                        declined: true,
+                        skipped: response?.skipped,
+                        message: 'User declined this question'
+                      }
+                })
+              }}
+            />
+          </div>
+        )}
+
         <div
           className={cn(
             'relative flex flex-col w-full gap-2 bg-muted rounded-3xl border border-input transition-shadow',
             isInputFocused &&
-              'ring-1 ring-ring/20 ring-offset-1 ring-offset-background/50'
+              'ring-1 ring-ring/20 ring-offset-1 ring-offset-background/50',
+            // When the question is pending, dim the regular input — user
+            // should answer via the card above.
+            pendingAskQuestion && 'opacity-50 pointer-events-none'
           )}
         >
           {selectedItem && (
