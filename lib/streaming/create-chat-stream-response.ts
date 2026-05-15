@@ -44,7 +44,8 @@ export async function createChatStreamResponse(
     abortSignal,
     isNewChat,
     searchMode,
-    agentPrompt
+    agentPrompt,
+    perfTracer
   } = config
 
   // Verify that chatId is provided
@@ -124,6 +125,7 @@ export async function createChatStreamResponse(
     const memoryPrompt = await loadUserMemory(userId).catch(() => null)
 
     // Get the researcher agent with parent trace ID and search mode.
+    perfTracer?.mark('mcpStart')
     const { agent: researchAgent, mcpClient } = await researcher({
       model: context.modelId,
       modelConfig: model,
@@ -132,6 +134,7 @@ export async function createChatStreamResponse(
       memoryPrompt,
       agentPrompt
     })
+    perfTracer?.mark('mcpReady')
 
     // For OpenAI models, strip reasoning parts from UIMessages before conversion
     // OpenAI's Responses API requires reasoning items and their following items to be kept together
@@ -183,6 +186,7 @@ export async function createChatStreamResponse(
     perfLog(
       `researchAgent.stream - Start: model=${context.modelId}, searchMode=${searchMode}`
     )
+    perfTracer?.mark('streamStart')
     const result = await researchAgent.stream({
       messages: modelMessages,
       abortSignal,
@@ -203,6 +207,23 @@ export async function createChatStreamResponse(
       onFinish: async ({ responseMessage, isAborted }) => {
         try {
           perfTime('researchAgent.stream completed', llmStart)
+          perfTracer?.mark('streamEnd')
+
+          // Capture tool calls and usage from the response message
+          if (perfTracer && responseMessage?.parts) {
+            const parts: any[] = responseMessage.parts as any[]
+            for (const p of parts) {
+              const isDynamic = p?.type === 'dynamic-tool'
+              const isTool =
+                typeof p?.type === 'string' && p.type.startsWith('tool-')
+              if (isDynamic || isTool) {
+                const name =
+                  p.toolName ?? (p.type as string).replace(/^tool-/, '')
+                if (name) perfTracer.recordToolCall(name, 0)
+              }
+            }
+          }
+
           if (isAborted || !responseMessage) return
 
           // Persist stream results to database
@@ -224,6 +245,8 @@ export async function createChatStreamResponse(
           if (langfuse) {
             await langfuse.flushAsync()
           }
+          // Persist perf trace (fire-and-forget, never throws)
+          perfTracer?.flush()
         }
       },
       onError: (error: unknown) => {

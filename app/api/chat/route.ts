@@ -7,6 +7,10 @@ import { getCurrentUserId } from '@/lib/auth/get-current-user'
 import { checkAndEnforceAdaptiveLimit } from '@/lib/rate-limit/adaptive-limit'
 import { checkAndEnforceOverallChatLimit } from '@/lib/rate-limit/chat-limits'
 import { checkAndEnforceGuestLimit } from '@/lib/rate-limit/guest-limit'
+import {
+  ChatPerfTracer,
+  getPerfLabel
+} from '@/lib/perf/chat-tracer'
 import { createChatStreamResponse } from '@/lib/streaming/create-chat-stream-response'
 import { createEphemeralChatStreamResponse } from '@/lib/streaming/create-ephemeral-chat-stream-response'
 import { SearchMode } from '@/lib/types/search'
@@ -20,6 +24,8 @@ export const maxDuration = 300
 export async function POST(req: Request) {
   const startTime = performance.now()
   const abortSignal = req.signal
+  const perfTracer = new ChatPerfTracer()
+  perfTracer.mark('start')
 
   // Reset counters for new request (development only)
   if (process.env.ENABLE_PERF_LOGGING === 'true') {
@@ -196,6 +202,7 @@ export async function POST(req: Request) {
       }
     }
 
+    perfTracer.mark('preflightDone')
     const streamStart = performance.now()
     perfLog(
       `createChatStreamResponse - Start: model=${selectedModel.providerId}:${selectedModel.id}, searchMode=${searchMode}`
@@ -220,8 +227,33 @@ export async function POST(req: Request) {
           isNewChat,
           searchMode,
           agentPrompt,
-          agentName
+          agentName,
+          perfTracer
         })
+
+    // Stash perf metadata; createChatStreamResponse flushes the trace in its
+    // onFinish callback once the stream completes.
+    if (!isGuest && userId) {
+      const queryText =
+        message?.parts
+          ?.map((p: any) => (typeof p?.text === 'string' ? p.text : ''))
+          .join(' ') ?? ''
+      perfTracer.setMeta({
+        userId,
+        chatId,
+        messageId,
+        model: `${selectedModel.providerId}:${selectedModel.id}`,
+        searchMode,
+        queryLength: queryText.length,
+        thinkingEnabled:
+          selectedModel.providerId === 'anthropic' &&
+          process.env.MELRON_DISABLE_THINKING !== 'true',
+        thinkingBudgetTokens: Number(
+          process.env.MELRON_THINKING_BUDGET_TOKENS ?? 4000
+        ),
+        label: getPerfLabel()
+      })
+    }
 
     perfTime('createChatStreamResponse resolved', streamStart)
 

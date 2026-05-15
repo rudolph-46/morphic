@@ -806,3 +806,63 @@ export const linkedinMessages = pgTable(
 ).enableRLS()
 
 export type LinkedinMessage = InferSelectModel<typeof linkedinMessages>
+
+// Per-chat-request performance traces. Captured by the chat route to compare
+// before/after optimisations.
+export const chatPerfTraces = pgTable(
+  'chat_perf_traces',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    chatId: varchar('chat_id', { length: ID_LENGTH }),
+    messageId: varchar('message_id', { length: ID_LENGTH }),
+    userId: varchar('user_id', { length: USER_ID_LENGTH }).notNull(),
+    model: varchar('model', { length: VARCHAR_LENGTH }),
+    searchMode: varchar('search_mode', { length: 32 }),
+    queryLength: integer('query_length').notNull().default(0),
+    thinkingEnabled: boolean('thinking_enabled').notNull().default(false),
+    thinkingBudgetTokens: integer('thinking_budget_tokens'),
+    // Stage timings in milliseconds
+    preflightMs: integer('preflight_ms'),
+    mcpSetupMs: integer('mcp_setup_ms'),
+    ttftMs: integer('ttft_ms'),
+    streamingMs: integer('streaming_ms'),
+    totalMs: integer('total_ms').notNull(),
+    // Tool calls
+    toolCallCount: integer('tool_call_count').notNull().default(0),
+    toolCalls: jsonb('tool_calls')
+      .$type<Array<{ name: string; durationMs: number }>>()
+      .notNull()
+      .default([]),
+    mcpToolNames: jsonb('mcp_tool_names')
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    // Anthropic usage
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    cacheReadTokens: integer('cache_read_tokens'),
+    cacheCreationTokens: integer('cache_creation_tokens'),
+    // Free-form notes (e.g. "before-mcp-cache", "after-mcp-cache") for A/B
+    label: varchar('label', { length: 64 }),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  table => [
+    index('chat_perf_user_idx').on(table.userId),
+    index('chat_perf_created_idx').on(table.createdAt),
+    index('chat_perf_label_idx').on(table.label),
+    pgPolicy('chat_perf_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('chat_perf_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type ChatPerfTrace = InferSelectModel<typeof chatPerfTraces>
