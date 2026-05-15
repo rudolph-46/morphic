@@ -27,10 +27,11 @@ import { useArtifact } from './artifact/artifact-context'
 import { Button } from './ui/button'
 import { IconBlinkingLogo } from './ui/icons'
 import { ActionButtons } from './action-buttons'
+import { AgentSelector } from './agent-selector'
 import { useAuthModal } from './auth-modal'
 import { FileUploadButton } from './file-upload-button'
+import { HomeWelcome } from './home-welcome'
 import { MessageNavigationDots } from './message-navigation-dots'
-import { ModelSelectorClient } from './model-selector-client'
 import { SearchModeSelector } from './search-mode-selector'
 import { UploadedFileList } from './uploaded-file-list'
 
@@ -201,32 +202,31 @@ export function ChatPanel({
         messages.length > 0 ? 'sticky bottom-0 px-2 pb-2 md:pb-4' : 'px-6'
       )}
     >
-      {messages.length === 0 && (
-        <div className="mb-8 flex flex-col items-center gap-4 md:mb-12 md:gap-5">
-          <IconBlinkingLogo className="size-[58px]" />
-          {isGuest ? (
-            <>
-              <h1 className="max-w-3xl text-center font-serif text-4xl font-semibold leading-none tracking-normal text-foreground md:text-6xl lg:text-7xl">
-                Talk with your{' '}
-                <span className="italic text-muted-foreground">network</span>.
-              </h1>
-              <p className="max-w-xl text-center text-base leading-relaxed text-muted-foreground md:text-lg">
-                Découvrez les opportunités cachées dans votre réseau avec{' '}
-                <span className="font-semibold text-foreground">Melron</span>.
-              </p>
-            </>
-          ) : (
-            <>
-              <h1 className="text-xl md:text-2xl font-medium text-foreground">
-                Talk with your network
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Découvrez les opportunités de votre réseau
-              </p>
-            </>
-          )}
-        </div>
-      )}
+      {messages.length === 0 &&
+        (isGuest ? (
+          <div className="mb-8 flex flex-col items-center gap-4 md:mb-12 md:gap-5">
+            <IconBlinkingLogo className="size-[58px]" />
+            <h1 className="max-w-3xl text-center font-serif text-4xl font-semibold leading-none tracking-normal text-foreground md:text-6xl lg:text-7xl">
+              Ton AI{' '}
+              <span className="italic text-muted-foreground">networker</span>.
+            </h1>
+            <p className="max-w-xl text-center text-base leading-relaxed text-muted-foreground md:text-lg">
+              Trouve qui compte, pourquoi maintenant, et quoi faire ensuite —
+              avec <span className="font-semibold text-foreground">Melron</span>.
+            </p>
+          </div>
+        ) : (
+          <HomeWelcome
+            onSelectPrompt={prompt => {
+              handleInputChange({
+                target: { value: prompt }
+              } as React.ChangeEvent<HTMLTextAreaElement>)
+              setTimeout(() => {
+                inputRef.current?.focus()
+              }, INPUT_UPDATE_DELAY_MS)
+            }}
+          />
+        ))}
       {uploadedFiles.length > 0 && (
         <UploadedFileList files={uploadedFiles} onRemove={handleFileRemove} />
       )}
@@ -396,12 +396,10 @@ export function ChatPanel({
                   }}
                 />
               )}
-              <SearchModeSelector />
+              <SearchModeSelector chatId={chatId} />
             </div>
             <div className="flex items-center gap-2">
-              {!isCloudDeployment && modelSelectorData && (
-                <ModelSelectorClient data={modelSelectorData} />
-              )}
+              {!isGuest && <AgentSelector chatId={chatId} hideWhenEmpty />}
               {messages.length > 0 && (
                 <Button
                   variant="outline"
@@ -445,25 +443,20 @@ export function ChatPanel({
         {messages.length === 0 && (
           <ActionButtons
             onSelectPrompt={message => {
-              // Set the input value and submit
+              // Fill the input with the selected sub-prompt and let the user
+              // review or edit before sending. Pressing Enter or the send
+              // button will submit normally.
               handleInputChange({
                 target: { value: message }
               } as React.ChangeEvent<HTMLTextAreaElement>)
-              // Submit the form after a small delay to ensure the input is updated
               setTimeout(() => {
-                inputRef.current?.form?.requestSubmit()
-                // Reset focus state after action button submission
-                setIsInputFocused(false)
-                inputRef.current?.blur()
+                inputRef.current?.focus()
               }, INPUT_UPDATE_DELAY_MS)
             }}
-            onCategoryClick={category => {
-              // Set the category in the input
-              handleInputChange({
-                target: { value: category }
-              } as React.ChangeEvent<HTMLTextAreaElement>)
-              // Focus the input
-              inputRef.current?.focus()
+            onCategoryClick={() => {
+              // Just reveal the sub-prompts panel — do not touch the input.
+              // Writing the category label into the input was causing the
+              // user to submit the label itself instead of a real prompt.
             }}
             inputRef={inputRef}
             className="mt-2"

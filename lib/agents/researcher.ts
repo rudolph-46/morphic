@@ -72,14 +72,16 @@ export async function createResearcher({
   model,
   modelConfig,
   parentTraceId,
-  searchMode = 'adaptive',
-  memoryPrompt
+  searchMode = 'internal',
+  memoryPrompt,
+  agentPrompt
 }: {
   model: string
   modelConfig?: Model
   parentTraceId?: string
   searchMode?: SearchMode
   memoryPrompt?: string | null
+  agentPrompt?: string | null
 }): Promise<{
   agent: ToolLoopAgent<never, ResearcherTools, never>
   mcpClient: MelronMcpClient | null
@@ -100,9 +102,9 @@ export async function createResearcher({
 
     // Configure based on search mode
     switch (searchMode) {
-      case 'quick':
+      case 'external':
         console.log(
-          '[Researcher] Quick mode: maxSteps=20, tools=[search, fetch]'
+          '[Researcher] External mode (web/tiers): maxSteps=20, tools=[search, fetch]'
         )
         systemPrompt = QUICK_MODE_PROMPT
         activeToolsList = ['search', 'fetch']
@@ -110,12 +112,24 @@ export async function createResearcher({
         searchTool = wrapSearchToolForQuickMode(originalSearchTool)
         break
 
-      case 'adaptive':
+      case 'deep':
+        // TODO: brancher sur research_deep (cf. docs/MELRON_ANSWER_ENGINE_SPEC.md)
+        // En attendant, comportement étendu basé sur le mode interne.
+        systemPrompt = getAdaptiveModePrompt()
+        activeToolsList = ['search', 'fetch', 'todoWrite']
+        console.log(
+          `[Researcher] Deep mode (placeholder): maxSteps=80, tools=[${activeToolsList.join(', ')}]`
+        )
+        maxSteps = 80
+        searchTool = originalSearchTool
+        break
+
+      case 'internal':
       default:
         systemPrompt = getAdaptiveModePrompt()
         activeToolsList = ['search', 'fetch', 'todoWrite']
         console.log(
-          `[Researcher] Adaptive mode: maxSteps=50, tools=[${activeToolsList.join(', ')}]`
+          `[Researcher] Internal mode (réseau/MCP): maxSteps=50, tools=[${activeToolsList.join(', ')}]`
         )
         maxSteps = 50
         searchTool = originalSearchTool
@@ -146,15 +160,39 @@ export async function createResearcher({
       ...(mcpToolNames as (keyof ResearcherTools)[])
     ]
 
+    // Default provider options : enable Anthropic extended thinking so the
+    // model emits `reasoning` parts visible in the chain-of-thought.
+    // Budget is intentionally modest (4k tokens) to balance cost vs depth.
+    // Disable via env MELRON_DISABLE_THINKING=true if needed.
+    const isAnthropic = modelConfig?.providerId === 'anthropic'
+    const thinkingEnabled =
+      isAnthropic && process.env.MELRON_DISABLE_THINKING !== 'true'
+
+    const computedProviderOptions: Record<string, any> = {
+      ...(modelConfig?.providerOptions ?? {})
+    }
+    if (thinkingEnabled) {
+      computedProviderOptions.anthropic = {
+        ...(computedProviderOptions.anthropic ?? {}),
+        thinking: {
+          type: 'enabled',
+          budgetTokens: Number(
+            process.env.MELRON_THINKING_BUDGET_TOKENS ?? 4000
+          )
+        }
+      }
+    }
+    const hasProviderOptions = Object.keys(computedProviderOptions).length > 0
+
     // Create ToolLoopAgent with all configuration
     const agent = new ToolLoopAgent({
       model: getModel(model),
-      instructions: `${systemPrompt}\nCurrent date and time: ${currentDate}${memoryPrompt ? `\n\n${memoryPrompt}` : ''}`,
+      instructions: `${systemPrompt}\nCurrent date and time: ${currentDate}${memoryPrompt ? `\n\n${memoryPrompt}` : ''}${agentPrompt ? `\n\n## Agent personnalisé\n${agentPrompt}` : ''}`,
       tools,
       activeTools,
       stopWhen: stepCountIs(maxSteps),
-      ...(modelConfig?.providerOptions && {
-        providerOptions: modelConfig.providerOptions
+      ...(hasProviderOptions && {
+        providerOptions: computedProviderOptions
       }),
       experimental_telemetry: {
         isEnabled: isTracingEnabled(),

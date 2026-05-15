@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 
 import { Check, ChevronDown } from 'lucide-react'
 
@@ -8,10 +8,10 @@ import { SEARCH_MODE_CONFIGS } from '@/lib/config/search-modes'
 import { SearchMode } from '@/lib/types/search'
 import { cn } from '@/lib/utils'
 import {
-  getCookie,
-  setCookie,
-  subscribeToCookieChange
-} from '@/lib/utils/cookies'
+  getChatSearchMode,
+  setChatSearchMode,
+  subscribeToChatPreferences
+} from '@/lib/utils/chat-preferences'
 
 import { Button } from './ui/button'
 import {
@@ -22,29 +22,27 @@ import {
 } from './ui/dropdown-menu'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card'
 
-export function SearchModeSelector() {
+interface SearchModeSelectorProps {
+  chatId?: string
+}
+
+export function SearchModeSelector({ chatId }: SearchModeSelectorProps = {}) {
+  const subscribe = useCallback(
+    (cb: () => void) => subscribeToChatPreferences(chatId, cb),
+    [chatId]
+  )
+  const getSnapshot = useCallback(() => getChatSearchMode(chatId), [chatId])
   const value = useSyncExternalStore(
-    subscribeToCookieChange,
-    () => {
-      const savedMode = getCookie('searchMode')
-      return savedMode === 'adaptive' ? 'adaptive' : 'quick'
-    },
-    () => 'quick'
+    subscribe,
+    getSnapshot,
+    () => 'internal' as SearchMode
   )
   const [openHoverCard, setOpenHoverCard] = useState<string | null>(null)
   const [justSelected, setJustSelected] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  useEffect(() => {
-    const savedMode = getCookie('searchMode')
-    if (savedMode && !['quick', 'adaptive'].includes(savedMode)) {
-      // Clean up invalid cookie value (e.g., old 'planning' mode)
-      setCookie('searchMode', 'quick')
-    }
-  }, [])
-
   const handleModeSelect = (mode: SearchMode) => {
-    setCookie('searchMode', mode)
+    setChatSearchMode(chatId, mode)
     setOpenHoverCard(null) // Close hover card on selection
     setDropdownOpen(false) // Close dropdown on selection
     setJustSelected(true)

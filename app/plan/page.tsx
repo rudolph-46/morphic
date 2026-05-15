@@ -1,5 +1,5 @@
-import { KanbanBoard } from '@/components/board/kanban-board'
+import { redirect } from 'next/navigation'
 
 export default function PlanPage() {
-  return <KanbanBoard />
+  redirect('/board?tab=plan')
 }

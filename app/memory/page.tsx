@@ -1,5 +1,5 @@
-import { MemoryDashboard } from '@/components/memory/memory-dashboard'
+import { redirect } from 'next/navigation'
 
 export default function MemoryPage() {
-  return <MemoryDashboard />
+  redirect('/settings?tab=memory')
 }

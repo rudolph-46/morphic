@@ -2,10 +2,20 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 import { createServerClient } from '@supabase/ssr'
 
+import {
+  DEV_BYPASS_COOKIE,
+  resolveBypassFromCookie
+} from '@/lib/auth/dev-bypass'
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request
   })
+
+  const bypassCookie = request.cookies.get(DEV_BYPASS_COOKIE)?.value
+  if (resolveBypassFromCookie(bypassCookie)) {
+    return supabaseResponse
+  }
 
   const redirectWithSessionCookies = (url: URL) => {
     const redirectResponse = NextResponse.redirect(url)

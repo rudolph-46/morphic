@@ -9,13 +9,14 @@ import {
   ExternalLink,
   Pencil,
   Send,
-  User,
   X
 } from 'lucide-react'
 
 import { useChatContext } from '@/lib/contexts/chat-context'
 
 import { Button } from '../ui/button'
+
+import { EntityAvatar } from './entity-avatar'
 
 type SmartMessageOutput = {
   message?: {
@@ -30,6 +31,8 @@ type SmartMessageOutput = {
     company?: string
     linkedin_url?: string
     profile_url?: string
+    /** Recipient profile photo. Convention: tools SHOULD provide this. */
+    profile_picture_url?: string
   }
   personalization?: {
     hooks_used?: string[]
@@ -118,9 +121,12 @@ export function MelronMessageResult({ data }: { data: unknown }) {
       {/* Recipient */}
       {recipient && (
         <div className="flex items-start gap-3 p-3 rounded-lg border">
-          <div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-            <User className="size-4 text-muted-foreground" />
-          </div>
+          <EntityAvatar
+            name={recipientName || 'Destinataire'}
+            src={recipient.profile_picture_url}
+            kind="person"
+            size="md"
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">

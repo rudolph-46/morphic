@@ -23,7 +23,7 @@ export const Button: ComponentFn<CatalogType, 'Button'> = ({ props, on }) => {
   // zero padding. The shadcn link variant's hover underline is preserved.
   const linkOverride =
     variant === 'link'
-      ? 'h-auto w-fit justify-start whitespace-normal text-left px-0 py-0.5 font-semibold text-accent-foreground/50 hover:text-accent-foreground/70'
+      ? 'h-auto w-fit justify-start whitespace-normal text-left px-0 py-0.5 font-medium text-foreground/80 hover:text-foreground'
       : ''
 
   return (

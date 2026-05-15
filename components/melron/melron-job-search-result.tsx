@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  Building2,
   Calendar,
   Check,
   MapPin,
@@ -12,10 +11,14 @@ import {
 import { useChatContext } from '@/lib/contexts/chat-context'
 import { cn } from '@/lib/utils'
 
+import { EntityAvatar } from './entity-avatar'
+
 type Job = {
   job_id?: string
   title?: string
   company?: { name?: string; link?: string; logo?: string } | string
+  /** Logo URL alias when `company` is a string. Convention: tools SHOULD provide this. */
+  company_logo_url?: string
   company_url?: string
   location?: string
   salary?: string | null
@@ -68,8 +71,9 @@ function getCompanyName(c: Job['company']): string | undefined {
   return typeof c === 'string' ? c : c.name
 }
 
-function getCompanyLogo(c: Job['company']): string | undefined {
-  return typeof c === 'object' ? c?.logo : undefined
+function getCompanyLogo(job: Job): string | undefined {
+  if (job.company_logo_url) return job.company_logo_url
+  return typeof job.company === 'object' ? job.company?.logo : undefined
 }
 
 function formatApplicants(job: Job): string | null {
@@ -143,7 +147,7 @@ export function MelronJobSearchResult({ data }: { data: unknown }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {jobs.map((job, i) => {
           const company = getCompanyName(job.company)
-          const logo = getCompanyLogo(job.company)
+          const logo = getCompanyLogo(job)
           const applicants = formatApplicants(job)
           const posted = formatPostedDate(job)
           const jobUrl = job.url ?? job.linkedin_url
@@ -184,18 +188,13 @@ export function MelronJobSearchResult({ data }: { data: unknown }) {
                 </div>
               )}
 
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo}
-                  alt={company ?? ''}
-                  className="h-9 w-9 rounded shrink-0 object-cover mt-0.5"
-                />
-              ) : (
-                <div className="h-9 w-9 rounded shrink-0 bg-muted flex items-center justify-center mt-0.5">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-              )}
+              <EntityAvatar
+                name={company ?? job.title ?? ''}
+                src={logo}
+                kind="company"
+                size="md"
+                className="mt-0.5"
+              />
 
               <div className="flex-1 min-w-0">
                 <a

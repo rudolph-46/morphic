@@ -1,5 +1,6 @@
-import { LogoShowcase } from './logo-showcase'
 import { IconLogo } from '@/components/ui/icons'
+
+import { LogoShowcase } from './logo-showcase'
 
 const COLOR_CATEGORIES = [
   {

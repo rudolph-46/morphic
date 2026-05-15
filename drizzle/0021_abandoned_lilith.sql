@@ -1,0 +1,1 @@
+ALTER TABLE "user_profiles" ADD COLUMN "inbox_next_cursor" text;

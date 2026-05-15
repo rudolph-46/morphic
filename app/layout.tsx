@@ -1,12 +1,14 @@
 import { Suspense } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Inter as FontSans, Geist } from 'next/font/google'
+import { Geist,Inter as FontSans } from 'next/font/google'
 
 import { Analytics } from '@vercel/analytics/next'
 
-import { getCurrentUserId } from '@/lib/auth/get-current-user'
+import {
+  getCurrentUser,
+  getCurrentUserId
+} from '@/lib/auth/get-current-user'
 import { UserProvider } from '@/lib/contexts/user-context'
-import { createClient } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -53,18 +55,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  let user = null
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (supabaseUrl && supabaseAnonKey) {
-    const supabase = await createClient()
-    const {
-      data: { user: supabaseUser }
-    } = await supabase.auth.getUser()
-    user = supabaseUser
-  }
-
+  const user = await getCurrentUser()
   const userId = user?.id ?? (await getCurrentUserId())
 
   return (
@@ -84,7 +75,20 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <UserProvider hasUser={!!userId}>
+          <UserProvider
+            hasUser={!!userId}
+            firstName={
+              (user?.user_metadata?.first_name as string | undefined) ??
+              (typeof user?.user_metadata?.full_name === 'string'
+                ? (user.user_metadata.full_name as string).split(' ')[0]
+                : null) ??
+              (typeof user?.user_metadata?.name === 'string'
+                ? (user.user_metadata.name as string).split(' ')[0]
+                : null) ??
+              (user?.email ? user.email.split('@')[0].split('.')[0] : null)
+            }
+            email={user?.email ?? null}
+          >
             <Suspense>
               <AuthModalProvider>
                 {userId ? (

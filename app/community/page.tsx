@@ -1,5 +1,5 @@
-import { CommunityDashboard } from '@/components/community/community-dashboard'
+import { redirect } from 'next/navigation'
 
 export default function CommunityPage() {
-  return <CommunityDashboard />
+  redirect('/templates')
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 
 import { UseChatHelpers } from '@ai-sdk/react'
-import { Copy, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Copy, StickyNote, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { stripSpecBlocks } from '@/lib/render/strip-spec-blocks'
@@ -64,6 +64,45 @@ export function MessageActions({
     toast.success('Message copied to clipboard')
   }
 
+  const [isSavingNote, setIsSavingNote] = useState(false)
+  async function handleSaveAsNote() {
+    if (isSavingNote) return
+    setIsSavingNote(true)
+    try {
+      const cleaned = stripSpecBlocks(mappedMessage).trim()
+      const firstLine = cleaned.split('\n').find(l => l.trim().length > 0) ?? ''
+      const title =
+        firstLine.replace(/^#+\s*/, '').slice(0, 80) ||
+        `Note du ${new Date().toLocaleDateString('fr-FR')}`
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content: cleaned, chatId })
+      })
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error('Connecte-toi pour enregistrer cette réponse')
+        } else {
+          toast.error("Impossible d'enregistrer la note")
+        }
+        return
+      }
+      toast.success('Réponse enregistrée dans tes notes', {
+        action: {
+          label: 'Voir',
+          onClick: () => {
+            window.location.href = '/notes'
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Save as note failed:', error)
+      toast.error("Impossible d'enregistrer la note")
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
   async function handleFeedback(score: number) {
     if (isSubmittingFeedback || !traceId) return
 
@@ -113,8 +152,19 @@ export function MessageActions({
         size="icon"
         onClick={handleCopy}
         className="rounded-full"
+        title="Copier"
       >
         <Copy size={14} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleSaveAsNote}
+        disabled={isSavingNote}
+        className="rounded-full"
+        title="Enregistrer comme note"
+      >
+        <StickyNote size={14} />
       </Button>
       {traceId && (
         <>

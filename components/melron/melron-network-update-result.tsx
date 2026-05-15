@@ -15,9 +15,13 @@ import { cn } from '@/lib/utils'
 
 import { Button } from '../ui/button'
 
+import { EntityAvatar } from './entity-avatar'
+
 type Post = {
   author_name?: string
   author_headline?: string
+  /** Profile photo of the post author. Convention: tools SHOULD provide this. */
+  author_picture_url?: string
   text_preview?: string
   share_url?: string
   reactions?: number
@@ -74,9 +78,12 @@ function PostCard({ post }: { post: Post }) {
   return (
     <div className="rounded-lg border p-3 space-y-2">
       <div className="flex items-start gap-2">
-        <div className="size-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-          {post.author_name?.[0]?.toUpperCase() ?? '?'}
-        </div>
+        <EntityAvatar
+          name={post.author_name ?? '?'}
+          src={post.author_picture_url}
+          kind="person"
+          size="sm"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium truncate">

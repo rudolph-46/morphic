@@ -3,7 +3,15 @@
 import { useRouter } from 'next/navigation'
 
 import { User } from '@supabase/supabase-js'
-import { ChevronsUpDown, LogOut, Palette, Settings } from 'lucide-react'
+import {
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  Network,
+  Palette,
+  Plug,
+  Settings
+} from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -106,6 +114,25 @@ export function SidebarUserProfile({ user }: SidebarUserProfileProps) {
                 </div>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <Settings className="mr-2 size-4" />
+              Paramètres
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/network')}>
+              <Network className="mr-2 size-4" />
+              Mon réseau
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.push('/settings?tab=integrations')}
+            >
+              <Plug className="mr-2 size-4" />
+              Intégrations
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/plan')}>
+              <CreditCard className="mr-2 size-4" />
+              Plan & facturation
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>

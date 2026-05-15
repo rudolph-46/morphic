@@ -56,8 +56,9 @@ describe('selectModel', () => {
     vi.clearAllMocks()
     mockIsCloudDeployment.mockReturnValue(true)
     matrix = {
-      quick: quickModel,
-      adaptive: adaptiveModel
+      external: quickModel,
+      internal: adaptiveModel,
+      deep: adaptiveModel
     }
     setMatrixImplementation()
     mockIsProviderEnabled.mockReturnValue(true)
@@ -65,7 +66,7 @@ describe('selectModel', () => {
 
   it('returns the cloud model for the active mode when available', async () => {
     const result = await selectModel({
-      searchMode: 'quick',
+      searchMode: 'external',
       cookieStore: createCookieStore()
     })
     expect(result).toEqual(quickModel)
@@ -77,23 +78,23 @@ describe('selectModel', () => {
     )
 
     const result = await selectModel({
-      searchMode: 'quick',
+      searchMode: 'external',
       cookieStore: createCookieStore()
     })
 
     expect(result).toEqual(adaptiveModel)
   })
 
-  it('falls back to quick mode when search mode is omitted', async () => {
+  it('falls back to internal mode when search mode is omitted', async () => {
     const result = await selectModel({ cookieStore: createCookieStore() })
-    expect(result).toEqual(quickModel)
+    expect(result).toEqual(adaptiveModel)
   })
 
   it('falls back to DEFAULT_MODEL when cloud models are unavailable', async () => {
     matrix = {}
     setMatrixImplementation()
     const result = await selectModel({
-      searchMode: 'quick',
+      searchMode: 'external',
       cookieStore: createCookieStore()
     })
     expect(result).toEqual(DEFAULT_MODEL)
@@ -105,7 +106,7 @@ describe('selectModel', () => {
     )
 
     const result = await selectModel({
-      searchMode: 'quick',
+      searchMode: 'external',
       cookieStore: createCookieStore()
     })
 

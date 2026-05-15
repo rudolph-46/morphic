@@ -1,5 +1,9 @@
-import { HeartbeatDashboard } from '@/components/heartbeat/heartbeat-dashboard'
+import { HeartbeatStore } from '@/components/heartbeat/heartbeat-store'
+
+export const metadata = {
+  title: 'Heartbeat · Melron'
+}
 
 export default function HeartbeatPage() {
-  return <HeartbeatDashboard />
+  return <HeartbeatStore />
 }

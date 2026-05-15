@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 
 import { SHORTCUT_EVENTS, SHORTCUTS } from '@/lib/keyboard-shortcuts'
 import { SearchMode } from '@/lib/types/search'
-import { getCookie, setCookie } from '@/lib/utils/cookies'
 
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 
@@ -19,8 +18,20 @@ const THEME_CYCLE: Record<Theme, Theme> = {
 }
 
 const SEARCH_MODE_LABELS: Record<SearchMode, string> = {
-  quick: 'Quick',
-  adaptive: 'Adaptive'
+  internal: 'Mon réseau',
+  external: 'Hors réseau',
+  deep: 'Approfondie'
+}
+
+const SEARCH_MODE_CYCLE: Record<SearchMode, SearchMode> = {
+  internal: 'external',
+  external: 'deep',
+  deep: 'internal'
+}
+
+const LEGACY_TO_NEW: Record<string, SearchMode> = {
+  quick: 'external',
+  adaptive: 'internal'
 }
 
 export function KeyboardShortcutHandler() {
@@ -46,10 +57,18 @@ export function KeyboardShortcutHandler() {
   })
 
   useKeyboardShortcut(SHORTCUTS.toggleSearchMode, () => {
-    const current = getCookie('searchMode') || 'quick'
-    const next: SearchMode = current === 'quick' ? 'adaptive' : 'quick'
-    setCookie('searchMode', next)
-    toast.info(`Search mode: ${SEARCH_MODE_LABELS[next]}`)
+    // Détecte le chatId courant à partir de l'URL (/search/<id>) pour cibler
+    // la préférence par-chat. À défaut, applique au "default" (futurs chats).
+    const pathname =
+      typeof window !== 'undefined' ? window.location.pathname : ''
+    const chatIdMatch = pathname.match(/\/search\/([^/?#]+)/)
+    const chatId = chatIdMatch?.[1]
+     
+    const prefs = require('@/lib/utils/chat-preferences') as typeof import('@/lib/utils/chat-preferences')
+    const current = prefs.getChatSearchMode(chatId)
+    const next: SearchMode = SEARCH_MODE_CYCLE[current] ?? 'internal'
+    prefs.setChatSearchMode(chatId, next)
+    toast.info(`Mode de recherche : ${SEARCH_MODE_LABELS[next]}`)
   })
 
   useKeyboardShortcut(SHORTCUTS.showShortcuts, () => {

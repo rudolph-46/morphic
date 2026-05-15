@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { User } from '@supabase/supabase-js'
-import { Link2, LogOut, Palette } from 'lucide-react'
+import { Link2, LogOut, Palette, Settings as SettingsIcon } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -77,6 +78,13 @@ export default function UserMenu({ user }: UserMenuProps) {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <SettingsIcon className="mr-2 h-4 w-4" />
+            <span>Paramètres</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>

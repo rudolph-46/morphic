@@ -4,15 +4,11 @@ import Link from 'next/link'
 import { User } from '@supabase/supabase-js'
 import {
   Activity,
-  Brain,
-  Kanban,
+  Inbox,
   LogIn,
-  Network,
   Plus,
-  Users
+  StickyNote
 } from 'lucide-react'
-
-import { cn } from '@/lib/utils'
 
 import {
   Sidebar,
@@ -28,8 +24,10 @@ import {
 
 import { ChatHistorySection } from './sidebar/chat-history-section'
 import { ChatHistorySkeleton } from './sidebar/chat-history-skeleton'
+import { RecentsCollapsible } from './sidebar/recents-collapsible'
+import { SidebarNavItem } from './sidebar/sidebar-nav-item'
+import { SidebarSearchBar } from './sidebar/sidebar-search-bar'
 import { SidebarUserProfile } from './sidebar/sidebar-user-profile'
-import { IconLogo } from './ui/icons'
 
 interface AppSidebarProps {
   user?: User | null
@@ -38,68 +36,49 @@ interface AppSidebarProps {
 export default function AppSidebar({ user }: AppSidebarProps) {
   return (
     <Sidebar side="left" variant="sidebar" collapsible="offcanvas">
-      <SidebarHeader className="flex flex-row justify-between items-center">
-        <Link href="/" className="flex items-center gap-2 px-2 py-3">
-          <IconLogo className={cn('size-5')} />
-          <span className="font-semibold text-sm">Melron</span>
-        </Link>
-        <SidebarTrigger />
+      <SidebarHeader>
+        <div className="flex items-center justify-between px-2 pt-3 pb-2">
+          <Link href="/">
+            <span className="font-semibold text-xl tracking-tight">Melron</span>
+          </Link>
+          <SidebarTrigger />
+        </div>
+        <SidebarSearchBar />
       </SidebarHeader>
-      <SidebarContent className="flex flex-col px-2 py-4 h-full">
+      <SidebarContent className="flex flex-col px-2 py-2 h-full">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/" className="flex items-center gap-2">
-                <Plus className="size-4" />
-                <span>New</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/plan" className="flex items-center gap-2">
-                <Kanban className="size-4" />
-                <span>Plan</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/network" className="flex items-center gap-2">
-                <Network className="size-4" />
-                <span>My Network</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/heartbeat" className="flex items-center gap-2">
-                <Activity className="size-4" />
-                <span>Heartbeat</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/community" className="flex items-center gap-2">
-                <Users className="size-4" />
-                <span>Communauté</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/memory" className="flex items-center gap-2">
-                <Brain className="size-4" />
-                <span>Mémoire</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <SidebarNavItem
+            href="/"
+            icon={<Plus className="size-4" />}
+            label="Nouveau chat"
+            match="exact"
+          />
+
+          <SidebarNavItem
+            href="/inbox"
+            icon={<Inbox className="size-4" />}
+            label="Inbox"
+          />
+          <SidebarNavItem
+            href="/heartbeat"
+            icon={<Activity className="size-4" />}
+            label="Heartbeat"
+          />
+          <SidebarNavItem
+            href="/notes"
+            icon={<StickyNote className="size-4" />}
+            label="Notes"
+          />
         </SidebarMenu>
-        <div className="flex-1 overflow-y-auto">
-          <Suspense fallback={<ChatHistorySkeleton />}>
-            <ChatHistorySection />
-          </Suspense>
+
+        <div className="mt-3 flex-1 min-h-0 flex flex-col">
+          <RecentsCollapsible>
+            <div className="overflow-y-auto">
+              <Suspense fallback={<ChatHistorySkeleton />}>
+                <ChatHistorySection />
+              </Suspense>
+            </div>
+          </RecentsCollapsible>
         </div>
       </SidebarContent>
       <SidebarFooter>

@@ -13,4 +13,8 @@ export interface BaseStreamConfig {
   abortSignal?: AbortSignal
   isNewChat?: boolean
   searchMode?: SearchMode
+  /** Optional user-defined agent system prompt to layer on top of the default. */
+  agentPrompt?: string | null
+  /** Display name of the selected agent (for tracing/UX). */
+  agentName?: string | null
 }

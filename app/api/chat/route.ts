@@ -28,7 +28,16 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { message, messages, chatId, trigger, messageId, isNewChat } = body
+    const {
+      message,
+      messages,
+      chatId,
+      trigger,
+      messageId,
+      isNewChat,
+      searchMode: bodySearchMode,
+      agentId: bodyAgentId
+    } = body
 
     perfLog(
       `API Route - Start: chatId=${chatId}, trigger=${trigger}, isNewChat=${isNewChat}`
@@ -86,12 +95,30 @@ export async function POST(req: Request) {
 
     const cookieStore = await cookies()
 
-    // Get search mode from cookie
-    const searchModeCookie = cookieStore.get('searchMode')?.value
+    // Search mode source-of-truth: per-chat value sent in the request body.
+    // Falls back to legacy global cookie for backward-compat (existing sessions
+    // before localStorage migration). Final fallback: 'internal'.
+    const legacyModeMap: Record<string, SearchMode> = {
+      quick: 'external',
+      adaptive: 'internal'
+    }
+    const validModes: SearchMode[] = ['internal', 'external', 'deep']
+    function normalizeMode(raw: string | undefined): SearchMode | null {
+      if (!raw) return null
+      if (validModes.includes(raw as SearchMode)) return raw as SearchMode
+      if (legacyModeMap[raw]) return legacyModeMap[raw]
+      return null
+    }
     const searchMode: SearchMode =
-      searchModeCookie && ['quick', 'adaptive'].includes(searchModeCookie)
-        ? (searchModeCookie as SearchMode)
-        : 'quick'
+      normalizeMode(bodySearchMode) ??
+      normalizeMode(cookieStore.get('searchMode')?.value) ??
+      'internal'
+
+    // Optional agent override: validates ownership later (when not guest).
+    const agentId: string | null =
+      typeof bodyAgentId === 'string' && bodyAgentId.length > 0
+        ? bodyAgentId
+        : null
 
     const selectedModel = await selectModel({ searchMode, cookieStore })
 
@@ -112,18 +139,19 @@ export async function POST(req: Request) {
       )
     }
 
-    // Adaptive mode is gated to authenticated users on cloud deployments.
-    // Guests are nudged to sign in instead of being downgraded silently.
+    // Les modes "internal" et "deep" sont réservés aux utilisateurs authentifiés
+    // sur les déploiements cloud. Les invités sont invités à se connecter plutôt
+    // que d'être silencieusement rétrogradés.
     if (
       isGuest &&
-      searchMode === 'adaptive' &&
+      (searchMode === 'internal' || searchMode === 'deep') &&
       process.env.MORPHIC_CLOUD_DEPLOYMENT === 'true'
     ) {
       return new Response(
         JSON.stringify({
           error:
-            'Sign in to use Adaptive mode. Quick mode remains available without an account.',
-          mode: 'adaptive',
+            'Connecte-toi pour utiliser la recherche dans ton réseau. La recherche externe reste disponible sans compte.',
+          mode: searchMode,
           authRequired: true
         }),
         {
@@ -137,9 +165,34 @@ export async function POST(req: Request) {
       const overallLimitResponse = await checkAndEnforceOverallChatLimit(userId)
       if (overallLimitResponse) return overallLimitResponse
 
-      if (searchMode === 'adaptive') {
+      if (searchMode === 'internal' || searchMode === 'deep') {
         const adaptiveLimitResponse = await checkAndEnforceAdaptiveLimit(userId)
         if (adaptiveLimitResponse) return adaptiveLimitResponse
+      }
+    }
+
+    // Resolve the user-selected agent (if any) and load its system prompt.
+    // Guests cannot use agents; ownership is enforced in the query.
+    let agentPrompt: string | null = null
+    let agentName: string | null = null
+    if (agentId && !isGuest) {
+      try {
+        const { db } = await import('@/lib/db')
+        const { userAgents } = await import('@/lib/db/schema')
+        const { and, eq } = await import('drizzle-orm')
+        const [row] = await db
+          .select()
+          .from(userAgents)
+          .where(
+            and(eq(userAgents.id, agentId), eq(userAgents.userId, userId))
+          )
+          .limit(1)
+        if (row) {
+          agentPrompt = row.systemPrompt ?? null
+          agentName = row.name
+        }
+      } catch (error) {
+        console.error('[chat] Failed to load agent:', error)
       }
     }
 
@@ -165,7 +218,9 @@ export async function POST(req: Request) {
           messageId,
           abortSignal,
           isNewChat,
-          searchMode
+          searchMode,
+          agentPrompt,
+          agentName
         })
 
     perfTime('createChatStreamResponse resolved', streamStart)

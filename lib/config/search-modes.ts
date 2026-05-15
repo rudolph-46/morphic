@@ -1,8 +1,6 @@
-import { Search } from 'lucide-react'
+import { Globe, Network, Telescope } from 'lucide-react'
 
 import { SearchMode } from '@/lib/types/search'
-
-import { IconLogoOutline } from '@/components/ui/icons'
 
 export interface SearchModeConfig {
   value: SearchMode
@@ -15,17 +13,25 @@ export interface SearchModeConfig {
 // Centralized search mode configuration
 export const SEARCH_MODE_CONFIGS: SearchModeConfig[] = [
   {
-    value: 'quick',
-    label: 'Quick',
-    description: 'Streamlined search for fast, concise responses',
-    icon: Search,
+    value: 'internal',
+    label: 'Mon réseau',
+    description: 'Recherche dans ton réseau et ton périmètre Melron',
+    icon: Network,
     color: 'text-amber-500'
   },
   {
-    value: 'adaptive',
-    label: 'Adaptive',
-    description: 'Adaptive agentic search with intelligent query understanding',
-    icon: IconLogoOutline,
+    value: 'external',
+    label: 'Hors réseau',
+    description: 'Recherche externe — web, sources publiques et tierces',
+    icon: Globe,
+    color: 'text-sky-500'
+  },
+  {
+    value: 'deep',
+    label: 'Approfondie',
+    description:
+      'Deep research — analyse multi-étapes avec rapport structuré et sources',
+    icon: Telescope,
     color: 'text-violet-500'
   }
 ]

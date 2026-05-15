@@ -11,16 +11,23 @@ import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
 
 import { Button } from './ui/button'
+import { DevAuthToggle } from './dev-auth-toggle'
 import { FeedbackModal } from './feedback-modal'
-// import { Button } from './ui/button' // No longer needed directly here for Sign In button
 import GuestMenu from './guest-menu' // Import the new GuestMenu component
-import UserMenu from './user-menu'
 
 interface HeaderProps {
   user: User | null
+  showDevToggle?: boolean
+  devBypassActive?: boolean
+  devUserEmail?: string
 }
 
-export const Header: React.FC<HeaderProps> = ({ user }) => {
+export const Header: React.FC<HeaderProps> = ({
+  user,
+  showDevToggle = false,
+  devBypassActive = false,
+  devUserEmail
+}) => {
   const { open } = useSidebar()
   const pathname = usePathname()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -41,6 +48,12 @@ export const Header: React.FC<HeaderProps> = ({ user }) => {
         <div></div>
 
         <div className="flex items-center gap-2">
+          {showDevToggle && (
+            <DevAuthToggle
+              initialEnabled={devBypassActive}
+              devUserEmail={devUserEmail}
+            />
+          )}
           {isRootPage && (
             <Button
               variant="outline"
@@ -50,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ user }) => {
               Feedback
             </Button>
           )}
-          {user ? <UserMenu user={user} /> : <GuestMenu />}
+          {!user && <GuestMenu />}
         </div>
       </header>
 

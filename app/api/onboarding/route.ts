@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+
+import { eq } from 'drizzle-orm'
 
 import { getCurrentUserId } from '@/lib/auth/get-current-user'
 import { db } from '@/lib/db'

@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 
 import { useFileDropzone } from '@/hooks/use-file-dropzone'
 
+import { ChatHeader } from './chat-header'
 import { ChatMessages } from './chat-messages'
 import { ChatPanel } from './chat-panel'
 import { DragOverlay } from './drag-overlay'
@@ -77,11 +78,16 @@ export function Chat({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const autoSendPending = useRef(false)
+  // Capture once at mount whether the initial input came from sessionStorage
+  // (onboarding/login flow, "discuter avec une note", suggestion clic…).
+  // Only those messages should auto-send. User keystrokes never auto-send.
+  const initialPendingRef = useRef<string | null>(null)
   const [input, setInput] = useState(() => {
     if (!isGuest && typeof window !== 'undefined') {
       const pending = sessionStorage.getItem('pendingMessage')
       if (pending) {
         sessionStorage.removeItem('pendingMessage')
+        initialPendingRef.current = pending
         return pending
       }
     }
@@ -120,11 +126,25 @@ export function Chat({
             ? messages.find(m => m.id === messageId)
             : undefined
 
+        // Per-chat preferences: read live values so the chat uses the
+        // mode/agent the user picked for THIS conversation, not a global cookie.
+        // Lazy-imported to avoid pulling localStorage code into SSR.
+        let searchMode: string | undefined
+        let agentId: string | null | undefined
+        if (typeof window !== 'undefined') {
+           
+          const prefs = require('@/lib/utils/chat-preferences') as typeof import('@/lib/utils/chat-preferences')
+          searchMode = prefs.getChatSearchMode(chatId)
+          agentId = prefs.getChatAgentId(chatId)
+        }
+
         return {
           body: {
             trigger, // Use AI SDK's default trigger value directly
             chatId: chatId,
             messageId,
+            searchMode,
+            agentId,
             ...(isGuest ? { messages } : {}),
             message:
               trigger === 'regenerate-message' &&
@@ -185,9 +205,11 @@ export function Chat({
           'You have reached your daily chat limit. Please try again tomorrow.'
 
         const details =
+          parsedError.mode === 'internal' ||
+          parsedError.mode === 'deep' ||
           parsedError.mode === 'adaptive'
-            ? 'The limit resets at midnight UTC. You can continue using Quick mode without restrictions.'
-            : 'The limit resets at midnight UTC.'
+            ? 'La limite est remise à zéro à minuit UTC. La recherche externe (Hors réseau) reste disponible sans restriction.'
+            : 'La limite est remise à zéro à minuit UTC.'
 
         setErrorModal({
           open: true,
@@ -309,20 +331,24 @@ export function Chat({
       window.removeEventListener(SHORTCUT_EVENTS.copyMessage, handleCopyMessage)
   }, [])
 
-  // Auto-send pending message from onboarding/login
+  // Auto-send pending message — only when it came from sessionStorage,
+  // never when the user types directly into the input.
   useEffect(() => {
+    const pending = initialPendingRef.current
     if (
       !isGuest &&
-      input.trim() &&
+      pending &&
+      input === pending &&
       messages.length === 0 &&
       status === 'ready' &&
       !autoSendPending.current
     ) {
       autoSendPending.current = true
+      initialPendingRef.current = null
       requestAnimationFrame(() => {
         sendMessage({
           role: 'user',
-          parts: [{ type: 'text', text: input }]
+          parts: [{ type: 'text', text: pending }]
         })
         setInput('')
         if (!isGuest && window.location.pathname === '/') {
@@ -529,6 +555,10 @@ export function Chat({
         onDragLeave={dragHandlers.handleDragLeave}
         onDrop={dragHandlers.handleDrop}
       >
+        {/* Top chat header (Partager + actions) — only on existing chats */}
+        {!isGuest && messages.length > 0 && (
+          <ChatHeader chatId={chatId} />
+        )}
         <ChatMessages
           sections={sections}
           status={status}

@@ -260,6 +260,36 @@ export async function deleteMessagesAfter(chatId: string, messageId: string) {
 }
 
 /**
+ * Rename a chat (update its title).
+ * Validates ownership via dbActions.updateChatTitle (RLS scoped to userId).
+ */
+export async function renameChat(chatId: string, title: string) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    return { success: false, error: 'Non authentifié' as const }
+  }
+
+  const trimmed = title.trim()
+  if (trimmed.length === 0) {
+    return { success: false, error: 'Le titre ne peut pas être vide' as const }
+  }
+  if (trimmed.length > 200) {
+    return {
+      success: false,
+      error: 'Le titre est trop long (200 caractères max)' as const
+    }
+  }
+
+  const updated = await dbActions.updateChatTitle(chatId, trimmed, userId)
+  if (!updated) {
+    return { success: false, error: 'Conversation introuvable' as const }
+  }
+
+  revalidateTag(`chat-${chatId}`, 'max')
+  return { success: true, chat: updated }
+}
+
+/**
  * Share a chat (make it public)
  */
 export async function shareChat(chatId: string) {

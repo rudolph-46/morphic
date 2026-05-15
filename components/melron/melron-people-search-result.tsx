@@ -12,12 +12,20 @@ import {
 import { useChatContext } from '@/lib/contexts/chat-context'
 import { cn } from '@/lib/utils'
 
+import { EntityAvatar } from './entity-avatar'
+
 type Person = {
   full_name?: string
   anonymized_name?: string
   headline?: string
   location?: string
   profile_url?: string
+  /** LinkedIn profile photo URL. Convention: tools MUST populate this when available. */
+  profile_picture_url?: string
+  /** Current company name (for sub-line). */
+  company_name?: string
+  /** Current company logo. */
+  company_logo_url?: string
   relevance_score?: number
   network_distance?: string
   is_founder?: boolean
@@ -56,15 +64,6 @@ type SmartPeopleSearchOutput = {
 function getDisplayName(p: Person): string {
   if (p.full_name && p.full_name !== 'Utilisateur LinkedIn') return p.full_name
   return p.anonymized_name ?? 'Profil LinkedIn'
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
 }
 
 function distanceLabel(d?: string): string | null {
@@ -109,7 +108,6 @@ export function MelronPeopleSearchResult({ data }: { data: unknown }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {people.map((person, i) => {
           const name = getDisplayName(person)
-          const initials = getInitials(name)
           const distance = distanceLabel(person.network_distance)
           const hasProfile = !!person.profile_url
           const isSelected = selectedItem?.id === `person-${i}`
@@ -142,9 +140,12 @@ export function MelronPeopleSearchResult({ data }: { data: unknown }) {
               }}
             >
               {/* Avatar */}
-              <div className="size-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-                {initials}
-              </div>
+              <EntityAvatar
+                name={name}
+                src={person.profile_picture_url}
+                kind="person"
+                size="md"
+              />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">

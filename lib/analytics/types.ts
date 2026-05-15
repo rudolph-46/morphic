@@ -10,8 +10,14 @@
  * Contains all information needed to track a chat interaction
  */
 export interface ChatEventData {
-  /** Search mode used for the chat */
-  searchMode: 'quick' | 'planning' | 'adaptive'
+  /** Search mode used for the chat (legacy values kept for historical events) */
+  searchMode:
+    | 'internal'
+    | 'external'
+    | 'deep'
+    | 'quick'
+    | 'planning'
+    | 'adaptive'
   /** Conversation turn number (1-indexed, represents follow-up count) */
   conversationTurn: number
   /** Whether this is a new chat session */

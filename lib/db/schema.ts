@@ -273,6 +273,9 @@ export const userProfiles = pgTable(
     unipileAccountId: varchar('unipile_account_id', { length: VARCHAR_LENGTH }),
     whatsappNumber: varchar('whatsapp_number', { length: 50 }),
     whatsappEnabled: boolean('whatsapp_enabled').notNull().default(false),
+    inboxAutoTag: boolean('inbox_auto_tag').notNull().default(false),
+    inboxLastSyncAt: timestamp('inbox_last_sync_at'),
+    inboxNextCursor: text('inbox_next_cursor'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow()
   },
@@ -567,3 +570,239 @@ export const feedback = pgTable(
 ).enableRLS()
 
 export type Feedback = InferSelectModel<typeof feedback>
+
+// User projects (folders to group chats, like ChatGPT projects)
+export const userProjects = pgTable(
+  'user_projects',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    userId: varchar('user_id', { length: USER_ID_LENGTH }).notNull(),
+    name: varchar('name', { length: VARCHAR_LENGTH }).notNull(),
+    color: varchar('color', { length: 32 }).notNull().default('zinc'),
+    icon: varchar('icon', { length: 64 }).notNull().default('Folder'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  table => [
+    index('user_projects_user_idx').on(table.userId),
+    pgPolicy('user_projects_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('user_projects_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('user_projects_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('user_projects_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type UserProject = InferSelectModel<typeof userProjects>
+
+// User agents (custom AI personas, like ChatGPT GPTs)
+export const userAgents = pgTable(
+  'user_agents',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    userId: varchar('user_id', { length: USER_ID_LENGTH }).notNull(),
+    name: varchar('name', { length: VARCHAR_LENGTH }).notNull(),
+    color: varchar('color', { length: 32 }).notNull().default('zinc'),
+    icon: varchar('icon', { length: 64 }).notNull().default('Sparkles'),
+    description: text('description'),
+    systemPrompt: text('system_prompt'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  table => [
+    index('user_agents_user_idx').on(table.userId),
+    pgPolicy('user_agents_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('user_agents_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('user_agents_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('user_agents_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type UserAgent = InferSelectModel<typeof userAgents>
+
+// Notes table — free-form notes the user can save and access from the sidebar.
+// Optionally linked to a chat (e.g. when saving a message as a note).
+export const notes = pgTable(
+  'notes',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    userId: varchar('user_id', { length: USER_ID_LENGTH }).notNull(),
+    title: varchar('title', { length: VARCHAR_LENGTH }).notNull(),
+    content: text('content').notNull().default(''),
+    chatId: varchar('chat_id', { length: ID_LENGTH }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+  },
+  table => [
+    index('notes_user_idx').on(table.userId),
+    index('notes_user_updated_idx').on(table.userId, table.updatedAt.desc()),
+    pgPolicy('notes_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('notes_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('notes_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('notes_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type Note = InferSelectModel<typeof notes>
+
+// LinkedIn / Unipile inbox — threads (chats) and messages
+export const linkedinThreads = pgTable(
+  'linkedin_threads',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    userId: varchar('user_id', { length: USER_ID_LENGTH }).notNull(),
+    accountId: varchar('account_id', { length: VARCHAR_LENGTH }).notNull(),
+    providerChatId: varchar('provider_chat_id', { length: VARCHAR_LENGTH })
+      .notNull(),
+    provider: varchar('provider', { length: 50 })
+      .notNull()
+      .default('LINKEDIN'),
+    attendeeName: varchar('attendee_name', { length: VARCHAR_LENGTH }),
+    attendeeHeadline: text('attendee_headline'),
+    attendeeProviderId: varchar('attendee_provider_id', {
+      length: VARCHAR_LENGTH
+    }),
+    attendeeAvatarUrl: text('attendee_avatar_url'),
+    lastMessageAt: timestamp('last_message_at'),
+    lastMessagePreview: text('last_message_preview'),
+    unreadCount: integer('unread_count').notNull().default(0),
+    aiTags: jsonb('ai_tags').$type<string[]>().notNull().default([]),
+    suggestedReplies: jsonb('suggested_replies')
+      .$type<Array<{ tone: string; text: string }>>()
+      .notNull()
+      .default([]),
+    syncedAt: timestamp('synced_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  table => [
+    index('linkedin_threads_user_idx').on(table.userId),
+    index('linkedin_threads_account_idx').on(table.accountId),
+    index('linkedin_threads_provider_chat_idx').on(table.providerChatId),
+    pgPolicy('linkedin_threads_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_threads_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('linkedin_threads_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_threads_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type LinkedinThread = InferSelectModel<typeof linkedinThreads>
+
+export const linkedinMessages = pgTable(
+  'linkedin_messages',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    threadId: varchar('thread_id', { length: ID_LENGTH })
+      .notNull()
+      .references(() => linkedinThreads.id, { onDelete: 'cascade' }),
+    providerMessageId: varchar('provider_message_id', {
+      length: VARCHAR_LENGTH
+    }).notNull(),
+    senderProviderId: varchar('sender_provider_id', {
+      length: VARCHAR_LENGTH
+    }),
+    isFromMe: boolean('is_from_me').notNull().default(false),
+    body: text('body'),
+    attachments: jsonb('attachments').$type<unknown[]>().notNull().default([]),
+    sentAt: timestamp('sent_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  table => [
+    index('linkedin_messages_thread_idx').on(table.threadId),
+    index('linkedin_messages_provider_msg_idx').on(table.providerMessageId),
+    pgPolicy('linkedin_messages_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_messages_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('linkedin_messages_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_messages_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type LinkedinMessage = InferSelectModel<typeof linkedinMessages>

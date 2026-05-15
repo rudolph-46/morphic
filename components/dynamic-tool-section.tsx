@@ -16,18 +16,21 @@ import {
 import type { UIDataTypes, UIMessage, UITools } from '@/lib/types/ai'
 import type { DynamicToolPart } from '@/lib/types/dynamic-tools'
 
-import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtStep,
-  ChainOfThoughtTrigger
-} from './chain-of-thought'
 import { MelronApplyResult } from './melron/melron-apply-result'
 import { MelronInterestMapResult } from './melron/melron-interest-map-result'
 import { MelronJobSearchResult } from './melron/melron-job-search-result'
 import { MelronMessageResult } from './melron/melron-message-result'
 import { MelronNetworkUpdateResult } from './melron/melron-network-update-result'
 import { MelronPeopleSearchResult } from './melron/melron-people-search-result'
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+  ChainOfThoughtSearchResult,
+  ChainOfThoughtSearchResults,
+  ChainOfThoughtStep,
+  ChainOfThoughtStepReasoning
+} from './chain-of-thought'
 import { CollapsibleMessage } from './collapsible-message'
 import ProcessHeader from './process-header'
 
@@ -181,51 +184,227 @@ export function DynamicToolSection({
   )
 }
 
+// ── Compact summary for chain steps ─────────────────
+// In chain-of-thought mode we don't render the full rich result cards
+// (too tall, breaks the trace flow). Instead we show small clickable chips
+// with the entity names — user clicks a chip to open the source URL in a
+// new tab. The rich rendering is reserved for standalone mode (one tool).
+
+type ChipItem = { label: string; href?: string; key: string }
+
+function pickChipsFromOutput(
+  toolName: string,
+  parsed: any
+): ChipItem[] {
+  if (!parsed || typeof parsed !== 'object') return []
+
+  if (toolName === 'smart_people_search' || toolName === 'find_people') {
+    const people = (parsed.people ?? []) as Array<{
+      full_name?: string
+      anonymized_name?: string
+      profile_url?: string
+    }>
+    return people.slice(0, 12).map((p, i) => ({
+      key: p.profile_url ?? `${i}`,
+      label: p.full_name && p.full_name !== 'Utilisateur LinkedIn'
+        ? p.full_name
+        : p.anonymized_name ?? 'Profil'
+    , href: p.profile_url
+    }))
+  }
+
+  if (toolName === 'smart_job_search' || toolName === 'find_jobs') {
+    const jobs = (parsed.curated_jobs ?? parsed.jobs ?? []) as Array<{
+      title?: string
+      company?: { name?: string } | string
+      url?: string
+      linkedin_url?: string
+    }>
+    return jobs.slice(0, 12).map((j, i) => {
+      const company =
+        typeof j.company === 'string' ? j.company : j.company?.name
+      return {
+        key: j.url ?? j.linkedin_url ?? `${i}`,
+        label: company
+          ? `${j.title ?? 'Job'} — ${company}`
+          : j.title ?? 'Job',
+        href: j.url ?? j.linkedin_url
+      }
+    })
+  }
+
+  if (toolName === 'smart_network_update' || toolName === 'network_pulse') {
+    const posts = (parsed.posts ?? parsed.feed ?? []) as Array<{
+      author_name?: string
+      share_url?: string
+    }>
+    return posts.slice(0, 12).map((p, i) => ({
+      key: p.share_url ?? `${i}`,
+      label: p.author_name ?? 'Post',
+      href: p.share_url
+    }))
+  }
+
+  if (toolName === 'smart_message' || toolName === 'draft_message') {
+    const name = parsed.recipient?.name
+    const url =
+      parsed.recipient?.linkedin_url ?? parsed.recipient?.profile_url
+    if (!name) return []
+    return [{ key: 'recipient', label: `→ ${name}`, href: url }]
+  }
+
+  if (toolName === 'smart_apply' || toolName === 'apply_to_job') {
+    const title = parsed.application?.job_title ?? parsed.job_title
+    if (!title) return []
+    return [{ key: 'job', label: title, href: parsed.application?.job_url }]
+  }
+
+  if (toolName === 'smart_interest_map') {
+    const topics = (parsed.topics ?? []) as Array<{
+      name?: string
+      label?: string
+    }>
+    return topics.slice(0, 10).map((t, i) => ({
+      key: `${i}`,
+      label: t.name ?? t.label ?? 'Sujet'
+    }))
+  }
+
+  return []
+}
+
+function getStepDescription(
+  toolName: string,
+  parsed: any
+): string | null {
+  if (!parsed || typeof parsed !== 'object') return null
+  if (toolName === 'smart_people_search' || toolName === 'find_people') {
+    const found = parsed.search_meta?.total_found ?? parsed.people?.length
+    if (found != null) return `${found} profil${found > 1 ? 's' : ''} trouvé${found > 1 ? 's' : ''}`
+  }
+  if (toolName === 'smart_job_search' || toolName === 'find_jobs') {
+    const found = parsed.search_meta?.total_found ?? parsed.curated_jobs?.length
+    if (found != null) return `${found} offre${found > 1 ? 's' : ''}`
+  }
+  if (toolName === 'smart_network_update' || toolName === 'network_pulse') {
+    const count = parsed.posts?.length ?? parsed.feed?.length
+    if (count != null) return `${count} post${count > 1 ? 's' : ''}`
+  }
+  if (toolName === 'smart_message' || toolName === 'draft_message') {
+    return 'Message drafté'
+  }
+  return null
+}
+
+function renderCompactSummary(
+  tool: DynamicToolPart,
+  parsed: unknown
+): React.ReactNode {
+  if (tool.state === 'output-error') {
+    return (
+      <div className="text-xs text-destructive/90">
+        {tool.errorText || 'Erreur'}
+      </div>
+    )
+  }
+  if (tool.state !== 'output-available') return null
+
+  const chips = pickChipsFromOutput(tool.toolName, parsed)
+  if (chips.length === 0) return null
+
+  return (
+    <ChainOfThoughtSearchResults>
+      {chips.map(chip =>
+        chip.href ? (
+          <a
+            key={chip.key}
+            href={chip.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+          >
+            <ChainOfThoughtSearchResult className="cursor-pointer hover:bg-muted">
+              {chip.label}
+            </ChainOfThoughtSearchResult>
+          </a>
+        ) : (
+          <ChainOfThoughtSearchResult key={chip.key}>
+            {chip.label}
+          </ChainOfThoughtSearchResult>
+        )
+      )}
+    </ChainOfThoughtSearchResults>
+  )
+}
+
 // ── Chain of thought (multiple tools) ────────────────
 
 export function DynamicToolChain({
   tools,
-  status
+  status,
+  reasoningByToolCallId
 }: {
   tools: DynamicToolPart[]
   status?: UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>['status']
+  /** Per-tool reasoning text (model thinking that preceded the call). */
+  reasoningByToolCallId?: Record<string, string>
 }) {
+  // Auto-open while at least one step is still running so the user sees the
+  // process live; once everything is done the user can collapse to summary.
+  const hasRunning = tools.some(
+    t => t.state === 'input-streaming' || t.state === 'input-available'
+  )
+  const completedCount = tools.filter(
+    t => t.state === 'output-available'
+  ).length
+
   return (
-    <ChainOfThought>
-      {tools.map((tool, i) => {
-        const isLast = i === tools.length - 1
-        const label = getToolLabel(tool.toolName)
-        const Icon = getToolIcon(tool.toolName)
-        const isComplete = tool.state === 'output-available'
-        const isError = tool.state === 'output-error'
-        const isLoading =
-          tool.state === 'input-streaming' || tool.state === 'input-available'
-        const parsed = isComplete ? extractMcpJson(tool.output) : null
+    <ChainOfThought defaultOpen={hasRunning}>
+      <ChainOfThoughtHeader>
+        {hasRunning
+          ? `Recherche en cours (${completedCount}/${tools.length})`
+          : `${tools.length} étape${tools.length > 1 ? 's' : ''}`}
+      </ChainOfThoughtHeader>
+      <ChainOfThoughtContent>
+        {tools.map((tool, i) => {
+          const isLast = i === tools.length - 1
+          const label = getToolLabel(tool.toolName)
+          const Icon = getToolIcon(tool.toolName)
+          const isComplete = tool.state === 'output-available'
+          const isError = tool.state === 'output-error'
+          const isLoading =
+            tool.state === 'input-streaming' ||
+            tool.state === 'input-available'
+          const parsed = isComplete ? extractMcpJson(tool.output) : null
 
-        const stepStatus = isError
-          ? 'error' as const
-          : isLoading
-            ? 'loading' as const
-            : 'complete' as const
+          const stepStatus = isError
+            ? ('error' as const)
+            : isLoading
+              ? ('loading' as const)
+              : ('complete' as const)
 
-        return (
-          <ChainOfThoughtStep
-            key={tool.toolCallId}
-            isLast={isLast}
-            defaultOpen={isLast}
-          >
-            <ChainOfThoughtTrigger
+          // Description : compteur succint quand on connaît le nombre d'items
+          const description = isComplete ? getStepDescription(tool.toolName, parsed) : null
+
+          const reasoningText = reasoningByToolCallId?.[tool.toolCallId]
+
+          return (
+            <ChainOfThoughtStep
+              key={tool.toolCallId}
+              icon={Icon}
+              label={label}
+              description={description}
               status={stepStatus}
-              icon={<Icon className="size-3" />}
+              isLast={isLast}
             >
-              {label}
-            </ChainOfThoughtTrigger>
-            <ChainOfThoughtContent>
-              {renderToolBody(tool, parsed, label)}
-            </ChainOfThoughtContent>
-          </ChainOfThoughtStep>
-        )
-      })}
+              <ChainOfThoughtStepReasoning isStreaming={isLoading}>
+                {reasoningText}
+              </ChainOfThoughtStepReasoning>
+              {renderCompactSummary(tool, parsed)}
+            </ChainOfThoughtStep>
+          )
+        })}
+      </ChainOfThoughtContent>
     </ChainOfThought>
   )
 }

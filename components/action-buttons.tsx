@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 
 import {
-  FileText,
-  HelpCircle,
+  Activity,
   LucideIcon,
-  Newspaper,
-  Scale,
-  Search
+  MessageSquarePlus,
+  Search,
+  Sparkles,
+  Users
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -26,62 +26,62 @@ interface ActionCategory {
 
 const actionCategories: ActionCategory[] = [
   {
+    icon: Users,
+    label: 'Trouver des gens',
+    key: 'find_people'
+  },
+  {
+    icon: Activity,
+    label: 'Veille réseau',
+    key: 'network_watch'
+  },
+  {
+    icon: Sparkles,
+    label: 'Opportunités',
+    key: 'opportunities'
+  },
+  {
+    icon: MessageSquarePlus,
+    label: 'Drafter un message',
+    key: 'draft_message'
+  },
+  {
     icon: Search,
-    label: 'Research',
-    key: 'research'
-  },
-  {
-    icon: Scale,
-    label: 'Compare',
-    key: 'compare'
-  },
-  {
-    icon: Newspaper,
-    label: 'Latest',
-    key: 'latest'
-  },
-  {
-    icon: FileText,
-    label: 'Summarize',
-    key: 'summarize'
-  },
-  {
-    icon: HelpCircle,
-    label: 'Explain',
-    key: 'explain'
+    label: 'Briefer un profil',
+    key: 'brief_profile'
   }
 ]
 
 const promptSamples: Record<string, string[]> = {
-  research: [
-    'Why is Nvidia growing so rapidly?',
-    'Research the latest AI developments',
-    'What are the key trends in robotics?',
-    'What are the latest breakthroughs in renewable energy?'
+  find_people: [
+    'Trouve les CTO fintech à Paris dans mon réseau',
+    "Qui dans mon réseau peut m'introduire chez Stripe ?",
+    'Profils sales B2B SaaS à Paris (2e degré)',
+    'Recruteurs actifs sur LinkedIn cette semaine'
   ],
-  compare: [
-    'Tesla vs BYD vs Toyota comparison',
-    'Compare Next.js, Remix, and Astro',
-    'AWS vs GCP vs Azure',
-    'iPhone vs Android ecosystem comparison'
+  network_watch: [
+    'Quels signaux dans mon réseau cette semaine ?',
+    'Qui a changé de poste récemment ?',
+    "Posts viraux d'amis sur le sujet IA",
+    'Levées de fonds dans mon réseau ce mois-ci'
   ],
-  latest: [
-    'Latest news today',
-    'What happened in tech this week?',
-    'Recent breakthroughs in medicine',
-    'Latest AI model releases'
+  opportunities: [
+    'Top 3 opportunités à activer cette semaine',
+    'Personnes à relancer dans mon pipeline',
+    "Match entre mes objectifs et mon réseau",
+    "Qui contacter pour ma prochaine levée ?"
   ],
-  summarize: [
-    'Summarize: https://arxiv.org/pdf/2504.19678',
-    "Summarize this week's business news",
-    'Create an executive summary of AI trends',
-    'Summarize recent climate change research'
+  draft_message: [
+    "Drafte un message d'intro à un VP Sales",
+    'Drafte une demande de mise en relation chaleureuse',
+    'Drafte une relance polie à un contact dormant',
+    'Drafte un message de félicitations pour un nouveau poste'
   ],
-  explain: [
-    'Explain neural networks simply',
-    'How does blockchain work?',
-    'What is quantum entanglement?',
-    'Explain CRISPR gene editing'
+  brief_profile: [
+    'Brief sur le CEO de Mistral AI',
+    "Que dois-je savoir sur l'entreprise Doctolib ?",
+    'Analyse le profil LinkedIn de [nom]',
+    "Quels sont les centres d'intérêt de ce contact ?"
   ]
 }
 

@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 
 import { IconLogo } from '../ui/icons'
+
 import { StepConnectLinkedIn } from './step-connect-linkedin'
 import { StepOtpVerification } from './step-otp-verification'
 import { StepPrompts } from './step-prompts'

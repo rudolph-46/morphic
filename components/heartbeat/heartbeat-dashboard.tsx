@@ -12,7 +12,6 @@ import {
   Clock,
   ExternalLink,
   Eye,
-  Heart,
   Mail,
   MessageCircle,
   MoreHorizontal,
@@ -505,18 +504,6 @@ export function HeartbeatDashboard() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-6 pt-6 pb-2 space-y-1">
-        <div className="flex items-center gap-2">
-          <Heart className="size-6 text-red-500" />
-          <h1 className="text-2xl font-bold">Heartbeat</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Vos recherches automatiques qui tournent en arrière-plan et vous
-          notifient des nouveaux résultats.
-        </p>
-      </div>
-
       {/* Stats */}
       <div className="flex items-center gap-4 px-6 py-3 text-sm text-muted-foreground">
         <span className="flex items-center gap-1.5">

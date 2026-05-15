@@ -1,0 +1,1 @@
+ALTER TABLE "linkedin_threads" ADD COLUMN "suggested_replies" jsonb DEFAULT '[]'::jsonb NOT NULL;

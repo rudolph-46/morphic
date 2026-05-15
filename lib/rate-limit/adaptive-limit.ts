@@ -135,11 +135,11 @@ export async function checkAndEnforceAdaptiveLimit(
     return new Response(
       JSON.stringify({
         error:
-          'Daily limit for Adaptive mode reached. Please try again tomorrow, or continue in Quick mode.',
+          'Limite quotidienne atteinte pour la recherche dans ton réseau. Réessaie demain, ou continue en recherche externe (Hors réseau).',
         remaining: 0,
         resetAt: result.resetAt,
         limit: result.limit,
-        mode: 'adaptive'
+        mode: 'internal'
       }),
       {
         status: 429,

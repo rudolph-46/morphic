@@ -348,9 +348,52 @@ export function ResearchProcessSection({
         const isParentOpen =
           parentOpenStates[parentId] ?? (hasSubsequentText ? false : true)
 
+        // Map reasoning text → toolCallId by walking the segment.
+        // We only consume a reasoning into a chain step when it precedes a
+        // multi-tool dynamic-tool chain (where DynamicToolChain renders it).
+        // Otherwise the standalone ReasoningSection keeps showing it as
+        // before — avoids duplication.
+        const reasoningByToolCallId: Record<string, string> = {}
+        const consumedReasoningParts = new Set<MessagePart>()
+        {
+          let pendingReasoning: { text: string; part: MessagePart }[] = []
+          for (let i = 0; i < seg.length; i++) {
+            const part = seg[i]
+            if (
+              (part as MessagePart).type === 'reasoning' &&
+              typeof (part as { text?: string }).text === 'string'
+            ) {
+              const t = (part as { text: string }).text.trim()
+              if (t) pendingReasoning.push({ text: t, part })
+            } else if (isDynamicToolPart(part) && pendingReasoning.length > 0) {
+              // Look ahead: are there 2+ consecutive dynamic-tools starting here?
+              // (matches DynamicToolChain's >1 trigger condition.)
+              let chainLen = 1
+              for (let j = i + 1; j < seg.length; j++) {
+                if (isDynamicToolPart(seg[j])) chainLen++
+                else break
+              }
+              if (chainLen > 1) {
+                reasoningByToolCallId[part.toolCallId] = pendingReasoning
+                  .map(p => p.text)
+                  .join('\n\n')
+                pendingReasoning.forEach(p =>
+                  consumedReasoningParts.add(p.part)
+                )
+              }
+              pendingReasoning = []
+            }
+          }
+        }
+
+        // Filter out reasoning groups that were absorbed into a chain step.
+        const visibleGroups = groups
+          .map(grp => grp.filter(p => !consumedReasoningParts.has(p)))
+          .filter(grp => grp.length > 0)
+
         const segmentContent = (
           <div className={containerClass}>
-            {groups.map((grp, gidx) => {
+            {visibleGroups.map((grp, gidx) => {
               // If the entire group is dynamic-tools, render as chain
               if (grp.length > 0 && grp.every(p => isDynamicToolPart(p))) {
                 const dynamicTools = grp as DynamicToolPart[]
@@ -360,6 +403,7 @@ export function ResearchProcessSection({
                       key={`${messageId}-chain-${sidx}-${gidx}`}
                       tools={dynamicTools}
                       status={status}
+                      reasoningByToolCallId={reasoningByToolCallId}
                     />
                   )
                 }
@@ -384,7 +428,7 @@ export function ResearchProcessSection({
                         hasSubsequentContent={hasSubsequentContent(sidx)}
                         isSingle={isSingle}
                         isFirstGroup={gidx === 0}
-                        isLastGroup={gidx === groups.length - 1}
+                        isLastGroup={gidx === visibleGroups.length - 1}
                         groupLength={grp.length}
                         partIndex={pidx}
                         isLastDynamicTool={isLastDynamic}
