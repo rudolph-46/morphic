@@ -10,10 +10,7 @@ import {
   Users
 } from 'lucide-react'
 
-import { useChatContext } from '@/lib/contexts/chat-context'
 import { cn } from '@/lib/utils'
-
-import { Button } from '../ui/button'
 
 import { EntityAvatar } from './entity-avatar'
 
@@ -177,16 +174,34 @@ function PostCard({
 
 export function MelronNetworkUpdateResult({
   data,
-  toolCallId
+  toolCallId,
+  compact = true
 }: {
   data: unknown
   toolCallId?: string
+  /** When true (default in chat), render a single-line summary chip. The full
+   * rich rendering is handled by the SourcesPanel above the answer. */
+  compact?: boolean
 }) {
   const d = (data ?? {}) as SmartNetworkUpdateOutput
   const posts = d.posts ?? []
   const briefing = d.feed_briefing
   const meta = d.search_meta
-  const { sendMessage } = useChatContext()
+
+  if (compact) {
+    return (
+      <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+        <TrendingUp className="size-3 text-emerald-500" />
+        <span>
+          <strong className="text-foreground tabular-nums">
+            {meta?.total_found ?? posts.length}
+          </strong>{' '}
+          posts trouvés
+          {meta?.period ? ` · ${meta.period}` : ''}
+        </span>
+      </div>
+    )
+  }
 
   const topPosts = posts.slice(0, 5)
 
@@ -273,28 +288,6 @@ export function MelronNetworkUpdateResult({
         </div>
       )}
 
-      {/* CTA */}
-      <div className="flex items-center gap-2 pt-1">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() =>
-            sendMessage({
-              role: 'user',
-              parts: [
-                {
-                  type: 'text',
-                  text: 'Planifier un post LinkedIn basé sur les tendances de mon réseau'
-                }
-              ]
-            })
-          }
-        >
-          <MessageCircle className="size-3" />
-          Planifier un post
-        </Button>
-      </div>
     </div>
   )
 }
