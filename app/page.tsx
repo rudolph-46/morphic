@@ -3,6 +3,7 @@ import { getModelSelectorData } from '@/lib/model-selector/get-model-selector-da
 
 import { ArtifactProvider } from '@/components/artifact/artifact-context'
 import { Chat } from '@/components/chat'
+import { CrowdCanvas } from '@/components/landing/crowd-canvas'
 import { LandingFooter, LandingNavbar } from '@/components/landing/landing-page'
 import { landingLightTheme } from '@/components/landing/landing-theme'
 import { TemplatesSection } from '@/components/landing/templates-section'

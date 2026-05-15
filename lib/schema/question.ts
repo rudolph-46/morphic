@@ -37,10 +37,18 @@ export const questionSchema = z
       .optional()
       .describe('List of predefined options as [{value, label}]'),
     answers: z.any().optional(),
+    selectMode: z
+      .enum(['single', 'multiple'])
+      .default('single')
+      .describe(
+        'How users select options: "single" picks one (default), "multiple" picks several'
+      ),
     allowsInput: z
       .boolean()
-      .default(false)
-      .describe('Whether to allow free-form text input'),
+      .default(true)
+      .describe(
+        'Whether to show a "Something else" free-text input so the user can type their own answer'
+      ),
     inputLabel: z
       .string()
       .optional()
@@ -55,6 +63,7 @@ export const questionSchema = z
     return {
       question: data.question,
       options: parseOptionsField(raw),
+      selectMode: data.selectMode,
       allowsInput: data.allowsInput,
       inputLabel: data.inputLabel,
       inputPlaceholder: data.inputPlaceholder
@@ -75,6 +84,9 @@ export const strictQuestionSchema = z
       .optional()
       .describe('List of predefined options as [{value, label}]'),
     answers: z.any().optional(),
+    selectMode: z
+      .enum(['single', 'multiple'])
+      .describe('How users select: "single" or "multiple"'),
     allowsInput: z.boolean().describe('Whether to allow free-form text input'),
     inputLabel: z.string().describe('Label for free-form input field'),
     inputPlaceholder: z.string().describe('Placeholder text for input field')
@@ -84,6 +96,7 @@ export const strictQuestionSchema = z
     return {
       question: data.question,
       options: parseOptionsField(raw),
+      selectMode: data.selectMode,
       allowsInput: data.allowsInput,
       inputLabel: data.inputLabel,
       inputPlaceholder: data.inputPlaceholder
