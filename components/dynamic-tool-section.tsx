@@ -21,6 +21,7 @@ import { MelronInterestMapResult } from './melron/melron-interest-map-result'
 import { MelronJobSearchResult } from './melron/melron-job-search-result'
 import { MelronMessageResult } from './melron/melron-message-result'
 import { MelronNetworkUpdateResult } from './melron/melron-network-update-result'
+import { MelronOrchestratorResult } from './melron/melron-orchestrator-result'
 import { MelronPeopleSearchResult } from './melron/melron-people-search-result'
 import {
   ChainOfThought,
@@ -110,6 +111,9 @@ function renderToolBody(
   }
   if (tool.toolName === 'smart_message' && parsed) {
     return <MelronMessageResult data={parsed} />
+  }
+  if (tool.toolName === 'melron' && parsed) {
+    return <MelronOrchestratorResult data={parsed} />
   }
   if (
     (tool.toolName === 'smart_network_update' ||
