@@ -103,35 +103,33 @@ export async function createResearcher({
     // Configure based on search mode
     switch (searchMode) {
       case 'external':
-        console.log(
-          '[Researcher] External mode (web/tiers): maxSteps=20, tools=[search, fetch]'
-        )
         systemPrompt = QUICK_MODE_PROMPT
-        activeToolsList = ['search', 'fetch']
+        activeToolsList = ['search', 'fetch', 'askQuestion']
         maxSteps = 20
         searchTool = wrapSearchToolForQuickMode(originalSearchTool)
+        console.log(
+          `[Researcher] External mode: maxSteps=${maxSteps}, tools=[${activeToolsList.join(', ')}]`
+        )
         break
 
       case 'deep':
-        // TODO: brancher sur research_deep (cf. docs/MELRON_ANSWER_ENGINE_SPEC.md)
-        // En attendant, comportement étendu basé sur le mode interne.
         systemPrompt = getAdaptiveModePrompt()
-        activeToolsList = ['search', 'fetch', 'todoWrite']
-        console.log(
-          `[Researcher] Deep mode (placeholder): maxSteps=80, tools=[${activeToolsList.join(', ')}]`
-        )
+        activeToolsList = ['search', 'fetch', 'askQuestion', 'todoWrite']
         maxSteps = 80
         searchTool = originalSearchTool
+        console.log(
+          `[Researcher] Deep mode: maxSteps=${maxSteps}, tools=[${activeToolsList.join(', ')}]`
+        )
         break
 
       case 'internal':
       default:
         systemPrompt = getAdaptiveModePrompt()
-        activeToolsList = ['search', 'fetch', 'todoWrite']
-        console.log(
-          `[Researcher] Internal mode (réseau/MCP): maxSteps=50, tools=[${activeToolsList.join(', ')}]`
-        )
+        activeToolsList = ['search', 'fetch', 'askQuestion', 'todoWrite']
         maxSteps = 50
+        console.log(
+          `[Researcher] Internal mode: maxSteps=${maxSteps}, tools=[${activeToolsList.join(', ')}]`
+        )
         searchTool = originalSearchTool
         break
     }
