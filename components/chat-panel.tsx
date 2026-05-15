@@ -309,38 +309,32 @@ export function ChatPanel({
         {/* Message navigation - always visible */}
         {sections.length > 1 && <MessageNavigationDots sections={sections} />}
 
-        {/* Pending askQuestion: render the answer card in place of (above)
-            the regular text input. */}
-        {pendingAskQuestion && addToolResult && (
-          <div className="mb-2">
-            <QuestionConfirmation
-              toolInvocation={pendingAskQuestion}
-              onConfirm={(toolCallId, approved, response) => {
-                addToolResult({
-                  toolCallId,
-                  result: approved
-                    ? response
-                    : {
-                        declined: true,
-                        skipped: response?.skipped,
-                        message: 'User declined this question'
-                      }
-                })
-              }}
-            />
-          </div>
-        )}
-
-        <div
-          className={cn(
-            'relative flex flex-col w-full gap-2 bg-muted rounded-3xl border border-input transition-shadow',
-            isInputFocused &&
-              'ring-1 ring-ring/20 ring-offset-1 ring-offset-background/50',
-            // When the question is pending, dim the regular input — user
-            // should answer via the card above.
-            pendingAskQuestion && 'opacity-50 pointer-events-none'
-          )}
-        >
+        {/* Pending askQuestion REPLACES the textarea entirely — user must
+            answer via the card before resuming the conversation. */}
+        {pendingAskQuestion && addToolResult ? (
+          <QuestionConfirmation
+            toolInvocation={pendingAskQuestion}
+            onConfirm={(toolCallId, approved, response) => {
+              addToolResult({
+                toolCallId,
+                result: approved
+                  ? response
+                  : {
+                      declined: true,
+                      skipped: response?.skipped,
+                      message: 'User declined this question'
+                    }
+              })
+            }}
+          />
+        ) : (
+          <div
+            className={cn(
+              'relative flex flex-col w-full gap-2 bg-muted rounded-3xl border border-input transition-shadow',
+              isInputFocused &&
+                'ring-1 ring-ring/20 ring-offset-1 ring-offset-background/50'
+            )}
+          >
           {selectedItem && (
             <div className="flex items-center gap-2 px-3 pt-2">
               <div className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary rounded-full pl-2 pr-1 py-1 max-w-[280px]">
@@ -495,6 +489,7 @@ export function ChatPanel({
             </div>
           </div>
         </div>
+        )}
 
         {/* Action buttons for prompt suggestions */}
         {messages.length === 0 && (
