@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import {
   Activity,
   Heart,
-  Linkedin,
   Link as LinkIcon,
+  Linkedin,
   MoreHorizontal,
   PencilLine,
   Share2,

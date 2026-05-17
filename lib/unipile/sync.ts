@@ -10,14 +10,14 @@ import {
 import { classifyThread } from '@/lib/inbox/auto-tag'
 import { generateReplies } from '@/lib/inbox/suggested-replies'
 
+import { cacheAvatar } from './avatars'
 import {
-  type UnipileChat,
-  type UnipileChatAttendee,
-  type UnipileMessage,
   listAllMessages,
   listChatAttendees,
-  listChats
-} from './messaging'
+  listChats,
+  type UnipileChat,
+  type UnipileChatAttendee,
+  type UnipileMessage} from './messaging'
 
 export type SyncEvent =
   | { type: 'step'; step: 'accounts' | 'threads' | 'messages' | 'done' | 'error'; label: string }
@@ -237,6 +237,11 @@ export async function* runSync(
         .returning({ id: linkedinThreads.id })
       threadDbId = inserted.id
     }
+
+    // Cache the attendee avatar locally (fetched via /users/... which gives
+    // publicly fetchable URLs, unlike the /chats/.../attendees endpoint).
+    // Fire-and-forget per-thread: errors swallowed inside cacheAvatar.
+    await cacheAvatar(attendee.providerId, account.accountId)
 
     // Upsert messages (skip if providerMessageId already exists for this thread)
     if (msgs.length > 0) {

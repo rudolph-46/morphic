@@ -1,5 +1,6 @@
-import { asc, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
+
+import { asc, eq } from 'drizzle-orm'
 
 import { getCurrentUserId } from '@/lib/auth/get-current-user'
 import { db } from '@/lib/db'

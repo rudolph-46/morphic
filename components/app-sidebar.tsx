@@ -3,10 +3,10 @@ import Link from 'next/link'
 
 import { User } from '@supabase/supabase-js'
 import {
-  Activity,
   Inbox,
   LogIn,
   Plus,
+  Sparkles,
   StickyNote
 } from 'lucide-react'
 
@@ -24,6 +24,7 @@ import {
 
 import { ChatHistorySection } from './sidebar/chat-history-section'
 import { ChatHistorySkeleton } from './sidebar/chat-history-skeleton'
+import { InboxSidebarSubmenu } from './sidebar/inbox-sidebar-submenu'
 import { RecentsCollapsible } from './sidebar/recents-collapsible'
 import { SidebarNavItem } from './sidebar/sidebar-nav-item'
 import { SidebarSearchBar } from './sidebar/sidebar-search-bar'
@@ -50,20 +51,27 @@ export default function AppSidebar({ user }: AppSidebarProps) {
           <SidebarNavItem
             href="/"
             icon={<Plus className="size-4" />}
-            label="Nouveau chat"
+            label="Talk with Melron"
             match="exact"
+          />
+
+          <SidebarNavItem
+            href="/for-you"
+            icon={
+              <span className="relative inline-flex">
+                <Sparkles className="size-4 text-violet-500" />
+                <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-rose-500" />
+              </span>
+            }
+            label="Boîte de réception"
           />
 
           <SidebarNavItem
             href="/inbox"
             icon={<Inbox className="size-4" />}
-            label="Inbox"
+            label="Mon Réseau"
           />
-          <SidebarNavItem
-            href="/heartbeat"
-            icon={<Activity className="size-4" />}
-            label="Heartbeat"
-          />
+          <InboxSidebarSubmenu />
           <SidebarNavItem
             href="/notes"
             icon={<StickyNote className="size-4" />}

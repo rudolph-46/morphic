@@ -1,7 +1,7 @@
 import { InboxStore } from '@/components/inbox/inbox-store'
 
 export const metadata = {
-  title: 'Inbox · Melron'
+  title: 'Mon Réseau · Melron'
 }
 
 export default function InboxPage() {

@@ -20,15 +20,15 @@ import {
   Users,
   X
 } from 'lucide-react'
-import { Streamdown } from 'streamdown'
 import { toast } from 'sonner'
+import { Streamdown } from 'streamdown'
 
 import type { Note } from '@/lib/db/schema'
 import {
+  type EnrichedNote,
   enrichNote,
   getGroupMeta,
   NOTE_GROUPS,
-  type EnrichedNote,
   type NoteGroup
 } from '@/lib/notes/enrich'
 import { cn } from '@/lib/utils'

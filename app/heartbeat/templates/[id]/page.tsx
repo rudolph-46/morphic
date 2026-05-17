@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 
-import { TemplateDetail } from '@/components/heartbeat/template-detail'
 import { HEARTBEAT_TEMPLATES } from '@/components/heartbeat/template-data'
+import { TemplateDetail } from '@/components/heartbeat/template-detail'
 
 export async function generateMetadata({
   params

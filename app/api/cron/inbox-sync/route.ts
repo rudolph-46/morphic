@@ -1,5 +1,6 @@
-import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
+
+import { eq } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { unipileAccounts, userProfiles } from '@/lib/db/schema'

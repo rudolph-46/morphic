@@ -13,6 +13,7 @@ import {
   Flame,
   Inbox,
   Linkedin,
+  type LucideIcon,
   MessageSquare,
   MoreHorizontal,
   Paperclip,
@@ -22,9 +23,7 @@ import {
   Send,
   Sparkles,
   Star,
-  X,
-  type LucideIcon
-} from 'lucide-react'
+  X} from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 

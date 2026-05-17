@@ -1,9 +1,10 @@
-import { desc, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
+
+import { desc, eq } from 'drizzle-orm'
 
 import { getCurrentUserId } from '@/lib/auth/get-current-user'
 import { db } from '@/lib/db'
-import { chatPerfTraces, type ChatPerfTrace } from '@/lib/db/schema'
+import { type ChatPerfTrace,chatPerfTraces } from '@/lib/db/schema'
 
 interface Aggregate {
   count: number

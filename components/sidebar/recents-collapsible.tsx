@@ -1,6 +1,7 @@
 'use client'
 
 import { type ReactNode, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 import { ChevronRight } from 'lucide-react'
 
@@ -13,7 +14,10 @@ import {
 } from '@/components/ui/collapsible'
 
 export function RecentsCollapsible({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(true)
+  const pathname = usePathname()
+  // Collapse by default on /inbox to keep the sidebar tight; user can reopen.
+  const onInbox = pathname === '/inbox' || pathname.startsWith('/inbox/')
+  const [open, setOpen] = useState(!onInbox)
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>

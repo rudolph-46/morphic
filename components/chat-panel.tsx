@@ -25,8 +25,6 @@ import type {
   UIMessage,
   UITools
 } from '@/lib/types/ai'
-
-import { QuestionConfirmation } from './question-confirmation'
 import type { ModelSelectorData } from '@/lib/types/model-selector'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +37,7 @@ import { useAuthModal } from './auth-modal'
 import { FileUploadButton } from './file-upload-button'
 import { HomeWelcome } from './home-welcome'
 import { MessageNavigationDots } from './message-navigation-dots'
+import { QuestionConfirmation } from './question-confirmation'
 import { SearchModeSelector } from './search-mode-selector'
 import { UploadedFileList } from './uploaded-file-list'
 

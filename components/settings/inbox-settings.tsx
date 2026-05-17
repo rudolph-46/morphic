@@ -5,8 +5,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Inbox, Loader2, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+import { Button } from '@/components/ui/button'
 
 export function InboxSettings() {
   const [loading, setLoading] = useState(true)

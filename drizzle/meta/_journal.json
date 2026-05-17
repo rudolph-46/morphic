@@ -162,6 +162,27 @@
       "when": 1778858873507,
       "tag": "0022_amazing_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1779004429819,
+      "tag": "0023_mean_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1779005191668,
+      "tag": "0024_thick_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1779007550461,
+      "tag": "0025_overrated_legion",
+      "breakpoints": true
     }
   ]
 }

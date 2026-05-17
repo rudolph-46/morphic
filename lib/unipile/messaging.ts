@@ -103,6 +103,43 @@ async function uni<T>(path: string): Promise<T> {
   return (await res.json()) as T
 }
 
+async function uniPost<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${UNIPILE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'X-API-KEY': UNIPILE_TOKEN, Accept: 'application/json' },
+    body: form
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Unipile ${res.status} ${path}: ${text.slice(0, 300)}`)
+  }
+  return (await res.json()) as T
+}
+
+export interface UnipileSendResponse {
+  object?: string
+  message_id?: string
+  id?: string
+  provider_id?: string
+  chat_id?: string
+}
+
+/**
+ * Send a text message in an existing chat.
+ * Unipile expects multipart/form-data with a `text` field.
+ */
+export async function sendMessage(
+  chatId: string,
+  text: string
+): Promise<UnipileSendResponse> {
+  const form = new FormData()
+  form.set('text', text)
+  return uniPost<UnipileSendResponse>(
+    `/chats/${encodeURIComponent(chatId)}/messages`,
+    form
+  )
+}
+
 /**
  * List chats for an account. Returns up to `limit` chats sorted by most recent.
  */
@@ -131,6 +168,30 @@ export async function listMessages(
   const qs = params.toString()
   return uni<UnipileMessageList>(
     `/chats/${encodeURIComponent(chatId)}/messages${qs ? `?${qs}` : ''}`
+  )
+}
+
+export interface UnipileUserProfile {
+  object?: string
+  provider_id?: string
+  first_name?: string
+  last_name?: string
+  headline?: string
+  profile_picture_url?: string
+  profile_picture_url_large?: string
+}
+
+/**
+ * Fetch the user profile (richer than chat attendees — and the profile picture
+ * URL returned here is publicly fetchable, unlike the one from /chats/.../attendees).
+ */
+export async function getUser(
+  providerId: string,
+  accountId: string
+): Promise<UnipileUserProfile> {
+  const params = new URLSearchParams({ account_id: accountId })
+  return uni<UnipileUserProfile>(
+    `/users/${encodeURIComponent(providerId)}?${params.toString()}`
   )
 }
 

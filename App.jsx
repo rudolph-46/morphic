@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef,useState } from 'react';
+
 import {
-  Search, Send, Inbox, Star, Clock, Archive, Trash2, Filter,
-  Sparkles, Brain, Zap, Linkedin, MoreHorizontal, Paperclip,
-  ChevronDown, Settings, Plus, Command, MessageSquare, Bell,
-  TrendingUp, AlertCircle, CheckCircle2, ArrowUp, X, Pin,
-  Calendar, User, Hash, Flame, Heart, Eye, Forward, Reply
-} from 'lucide-react';
+AlertCircle, Archive, ArrowUp, Bell,
+Brain,   Calendar, CheckCircle2,   ChevronDown, Clock, Command, Eye, Filter,
+Flame, Forward, Hash, Heart, Inbox, Linkedin, MessageSquare, MoreHorizontal, Paperclip,
+Pin,
+Plus, Reply,
+  Search, Send, Settings,   Sparkles, Star, Trash2,   TrendingUp, User, X, Zap} from 'lucide-react';
 
 export default function MelronInbox() {
   const [activeCategory, setActiveCategory] = useState('urgent');

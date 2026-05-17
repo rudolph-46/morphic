@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { ChevronDown, ExternalLink, Layers } from 'lucide-react'
 
 import type { SearchResultItem } from '@/lib/types'
-import { displayUrlName } from '@/lib/utils/domain'
 import { cn } from '@/lib/utils'
+import { displayUrlName } from '@/lib/utils/domain'
 
 interface SourcesPanelProps {
   citationMaps?: Record<string, Record<number, SearchResultItem>>

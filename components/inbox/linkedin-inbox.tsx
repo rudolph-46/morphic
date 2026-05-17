@@ -1,14 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+
+import TextareaAutosize from 'react-textarea-autosize'
 
 import {
   Archive,
   Banknote,
+  Bell,
+  BellOff,
   Briefcase,
   CalendarClock,
   Check,
   CheckCircle2,
+  ChevronDown,
   Coffee,
   Eye,
   Flame,
@@ -18,7 +24,11 @@ import {
   Inbox as InboxIcon,
   Linkedin,
   Loader2,
+  Image as ImageIcon,
+  MailOpen,
   Paperclip,
+  Pin,
+  Smile,
   RefreshCw,
   Repeat,
   Search,
@@ -50,6 +60,15 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+
+import { EmptyPersonState } from './empty-person-state'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from '@/components/ui/resizable'
+
+import { PersonChatPanel } from './person-chat-panel'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -185,7 +204,8 @@ interface SyncEvent {
 
 export function LinkedinInbox() {
   const [threads, setThreads] = useState<LinkedinThread[] | null>(null)
-  const [activeCategory, setActiveCategory] = useState<CategoryId>('all')
+  const searchParams = useSearchParams()
+  const activeCategory = (searchParams.get('view') ?? 'all') as CategoryId
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<LinkedinMessage[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -193,6 +213,8 @@ export function LinkedinInbox() {
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [composing, setComposing] = useState('')
   const [loadingMore, setLoadingMore] = useState(false)
+  const [repliesExpanded, setRepliesExpanded] = useState(false)
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null)
 
   const fetchThreads = useCallback(async () => {
     try {
@@ -249,6 +271,79 @@ export function LinkedinInbox() {
   useEffect(() => {
     if (selectedId) loadMessages(selectedId)
   }, [selectedId, loadMessages])
+
+  // Clear the selected thread when the view changes so the user lands fresh.
+  useEffect(() => {
+    setSelectedId(null)
+  }, [activeCategory])
+
+  // Auto-scroll to the latest message when the thread or its messages change.
+  useEffect(() => {
+    const el = messagesScrollRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [selectedId, messages, loadingMessages])
+
+  const handleSend = useCallback(() => {
+    const text = composing.trim()
+    if (!text || !selectedId) return
+
+    const threadId = selectedId
+    const tempId = `optimistic-${Date.now()}`
+    const sentAt = new Date()
+
+    // Optimistic UI: clear input + show message immediately
+    setComposing('')
+    setMessages(prev => [
+      ...prev,
+      {
+        id: tempId,
+        threadId,
+        providerMessageId: tempId,
+        senderProviderId: null,
+        isFromMe: true,
+        body: text,
+        attachments: [],
+        sentAt,
+        createdAt: sentAt
+      } as LinkedinMessage
+    ])
+    setThreads(prev =>
+      prev
+        ? prev.map(t =>
+            t.id === threadId
+              ? {
+                  ...t,
+                  lastMessageAt: sentAt,
+                  lastMessagePreview: text.slice(0, 280)
+                }
+              : t
+          )
+        : prev
+    )
+
+    // Fire-and-forget network call
+    void (async () => {
+      try {
+        const res = await fetch(`/api/inbox/threads/${threadId}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error ?? 'Échec de l’envoi')
+          // Roll back the optimistic message; restore the draft
+          setMessages(prev => prev.filter(m => m.id !== tempId))
+          setComposing(prevText => prevText || text)
+        }
+      } catch (err) {
+        toast.error(`Échec : ${(err as Error).message}`)
+        setMessages(prev => prev.filter(m => m.id !== tempId))
+        setComposing(prevText => prevText || text)
+      }
+    })()
+  }, [composing, selectedId])
 
   const counts = useMemo(() => {
     if (!threads) return {} as Record<CategoryId, number>
@@ -336,126 +431,39 @@ export function LinkedinInbox() {
   return (
     <>
       <div className="flex h-full min-h-0">
-        {/* ─ Column 1: categories ─ */}
-        <aside className="w-60 shrink-0 border-r border-border/60 flex flex-col min-h-0 bg-muted/20">
-          <div className="p-3 border-b border-border/60">
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              onClick={() => toast.info('Nouvelle conversation à venir')}
-            >
-              <Send className="size-3.5" />
-              Nouvelle conversation
-            </Button>
-          </div>
-
-          <nav className="flex-1 overflow-y-auto py-2">
-            <SidebarItem
-              label="Tous"
-              icon={InboxIcon}
-              color="text-foreground"
-              count={counts.all ?? 0}
-              active={activeCategory === 'all'}
-              onClick={() => {
-                setActiveCategory('all')
-                setSelectedId(null)
-              }}
-            />
-
-            <div className="mt-3 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Vues
-            </div>
-            {ACTION_VIEWS.map(view => {
-              const meta = ACTION_META[view]
-              const count = counts[view] ?? 0
-              return (
-                <SidebarItem
-                  key={view}
-                  label={meta.label}
-                  icon={meta.icon}
-                  color={meta.color}
-                  count={count}
-                  active={activeCategory === view}
-                  onClick={() => {
-                    setActiveCategory(view)
-                    setSelectedId(null)
-                  }}
-                />
-              )
-            })}
-
-            <div className="mt-3 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Tags business
-            </div>
-            {BUSINESS_TAGS.map(tag => {
-              const meta = BUSINESS_META[tag]
-              const count = counts[tag] ?? 0
-              return (
-                <SidebarItem
-                  key={tag}
-                  label={meta.label}
-                  icon={meta.icon}
-                  color={meta.color}
-                  count={count}
-                  active={activeCategory === tag}
-                  onClick={() => {
-                    setActiveCategory(tag)
-                    setSelectedId(null)
-                  }}
-                />
-              )
-            })}
-          </nav>
-
-          <div className="p-2.5 border-t border-border/60">
-            <button
-              onClick={() => setOptionsOpen(true)}
-              className="w-full flex items-center gap-2 rounded-md p-2 hover:bg-muted text-left transition-colors group"
-            >
-              <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium">À jour</div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  Resynchroniser
-                </div>
-              </div>
-              <Settings2 className="size-3 opacity-50 group-hover:opacity-100" />
-            </button>
-          </div>
-        </aside>
-
-        {/* ─ Column 2: threads list ─ */}
+        {/* ─ Column 1: threads list ─ */}
         <div className="w-80 shrink-0 border-r border-border/60 flex flex-col min-h-0">
-          <div className="p-3 border-b border-border/60 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold flex items-center gap-1.5">
-                {categoryLabel(activeCategory)}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {filteredThreads.length}
-                </span>
-              </h2>
-            </div>
-            <div className="relative">
+          <div className="px-3 h-14 border-b border-border/60 flex items-center gap-2 shrink-0">
+            <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Rechercher…"
+                placeholder={`Rechercher · ${filteredThreads.length}`}
                 className="w-full h-8 pl-8 pr-2 text-sm rounded-md border border-border/60 bg-muted/30 outline-none focus:bg-background focus:border-foreground/30"
               />
             </div>
-            {activeCategory === 'all' && (
+            <button
+              onClick={() => setOptionsOpen(true)}
+              title="Actualiser le réseau"
+              className="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+            >
+              <RefreshCw className="size-3.5" />
+            </button>
+          </div>
+          {activeCategory === 'all' && (
+            <div className="px-3 pt-2 pb-1 shrink-0">
               <div className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
                 <Sparkles className="size-2.5 text-emerald-500" />
                 Trié par date · priorité IA quand activée
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto flex flex-col">
             {filteredThreads.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">
-                Aucune conversation dans cette catégorie.
+                Aucune personne dans cette vue.
               </div>
             ) : (
               filteredThreads.map(t => (
@@ -468,11 +476,10 @@ export function LinkedinInbox() {
                   )}
                 >
                   <Avatar className="size-9 shrink-0">
-                    {t.attendeeAvatarUrl && (
+                    {t.attendeeProviderId && (
                       <AvatarImage
-                        src={t.attendeeAvatarUrl}
+                        src={`/api/inbox/avatar/${encodeURIComponent(t.attendeeProviderId)}`}
                         alt={t.attendeeName ?? ''}
-                        referrerPolicy="no-referrer"
                       />
                     )}
                     <AvatarFallback className="text-[10px] bg-muted">
@@ -534,21 +541,23 @@ export function LinkedinInbox() {
           </div>
         </div>
 
-        {/* ─ Column 3: conversation ─ */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* ─ Columns 2 + 3: resizable conversation + Melron panel ─ */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1 min-w-0">
+        <ResizablePanel
+          defaultSize={selected ? 65 : 100}
+          minSize={40}
+          className="flex flex-col min-h-0 min-w-0"
+        >
           {!selected ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-              Sélectionne une discussion.
-            </div>
+            <EmptyPersonState />
           ) : (
             <>
-              <div className="p-4 border-b border-border/60 flex items-center gap-3 shrink-0">
+              <div className="h-14 px-3 border-b border-border/60 flex items-center gap-3 shrink-0">
                 <Avatar className="size-10">
-                  {selected.attendeeAvatarUrl && (
+                  {selected.attendeeProviderId && (
                     <AvatarImage
-                      src={selected.attendeeAvatarUrl}
+                      src={`/api/inbox/avatar/${encodeURIComponent(selected.attendeeProviderId)}`}
                       alt={selected.attendeeName ?? ''}
-                      referrerPolicy="no-referrer"
                     />
                   )}
                   <AvatarFallback className="text-xs bg-muted">
@@ -569,9 +578,48 @@ export function LinkedinInbox() {
                     </div>
                   )}
                 </div>
+
+                {/* Quick actions */}
+                <div className="flex items-center gap-0.5 shrink-0 text-muted-foreground">
+                  <button
+                    type="button"
+                    title="Épingler"
+                    onClick={() => toast.info('Épingler — bientôt disponible')}
+                    className="size-8 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <Pin className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Marquer non lu"
+                    onClick={() => toast.info('Marquer non lu — bientôt disponible')}
+                    className="size-8 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <MailOpen className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Snooze"
+                    onClick={() => toast.info('Snooze — bientôt disponible')}
+                    className="size-8 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <BellOff className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Archiver"
+                    onClick={() => toast.info('Archiver — bientôt disponible')}
+                    className="size-8 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <Archive className="size-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              <div
+                ref={messagesScrollRef}
+                className="flex-1 overflow-y-auto p-6 space-y-3"
+              >
                 {loadingMessages ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -584,8 +632,8 @@ export function LinkedinInbox() {
                   [...messages]
                     .sort(
                       (a, b) =>
-                        new Date(b.sentAt).getTime() -
-                        new Date(a.sentAt).getTime()
+                        new Date(a.sentAt).getTime() -
+                        new Date(b.sentAt).getTime()
                     )
                     .map(m => (
                     <div
@@ -633,67 +681,78 @@ export function LinkedinInbox() {
                 )}
               </div>
 
-              {/* Suggested replies */}
-              {(selected.suggestedReplies ?? []).length > 0 && (
-                <div className="border-t border-border/60 px-4 pt-3 pb-2 shrink-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
-                      <Sparkles className="size-2.5 text-emerald-500" />
-                      {selected.suggestedReplies?.length} réponses suggérées
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {(selected.suggestedReplies ?? []).map((r, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setComposing(r.text)}
-                        className="text-left rounded-lg border border-border/60 bg-card hover:border-foreground/30 hover:bg-muted/30 px-3 py-2 transition-colors group"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                            {r.tone}
-                          </div>
-                          <Send className="size-3 opacity-30 group-hover:opacity-80" />
-                        </div>
-                        <div className="text-xs leading-relaxed line-clamp-4">
-                          {r.text}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* Composer */}
-              <div className="border-t border-border/60 p-3 shrink-0">
-                <div className="flex items-end gap-2 rounded-xl border border-border/60 bg-background p-2 focus-within:border-foreground/30 transition-colors">
-                  <button
-                    type="button"
-                    className="size-8 flex items-center justify-center text-muted-foreground hover:text-foreground"
-                  >
-                    <Paperclip className="size-4" />
-                  </button>
-                  <textarea
+              {/* Composer — LinkedIn-style: tall textarea, action bar below */}
+              <div className="border-t border-border/60 p-4 shrink-0">
+                <div className="flex flex-col rounded-2xl bg-muted/40 border border-border/60 focus-within:border-foreground/30 transition-colors">
+                  <TextareaAutosize
                     value={composing}
                     onChange={e => setComposing(e.target.value)}
-                    placeholder="Écrire un message ou cliquer sur une suggestion ↑"
-                    className="flex-1 resize-none bg-transparent outline-none text-sm min-h-[36px] max-h-32 py-1.5"
-                    rows={1}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    placeholder="Rédigez un message…"
+                    minRows={3}
+                    maxRows={10}
+                    className="resize-none w-full bg-transparent outline-none text-sm leading-relaxed px-4 pt-4 pb-2 placeholder:text-muted-foreground"
                   />
-                  <Button
-                    size="sm"
-                    disabled={!composing.trim()}
-                    onClick={() =>
-                      toast.info('Envoi de messages bientôt disponible')
-                    }
-                  >
-                    <Send className="size-3.5" />
-                  </Button>
+                  <div className="flex items-center justify-between px-2 pb-2">
+                    <div className="flex items-center gap-0.5 text-muted-foreground">
+                      <button
+                        type="button"
+                        title="Image"
+                        className="size-8 flex items-center justify-center rounded-md hover:bg-background hover:text-foreground transition-colors"
+                      >
+                        <ImageIcon className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Pièce jointe"
+                        className="size-8 flex items-center justify-center rounded-md hover:bg-background hover:text-foreground transition-colors"
+                      >
+                        <Paperclip className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Emoji"
+                        className="size-8 flex items-center justify-center rounded-md hover:bg-background hover:text-foreground transition-colors"
+                      >
+                        <Smile className="size-4" />
+                      </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={!composing.trim()}
+                      onClick={handleSend}
+                      className="rounded-full px-4"
+                    >
+                      Envoyer
+                      <Send className="size-3.5 ml-1.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
           )}
-        </div>
+        </ResizablePanel>
+
+        {selected && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel
+              defaultSize={35}
+              minSize={20}
+              maxSize={55}
+              className="flex flex-col min-h-0 min-w-0"
+            >
+              <PersonChatPanel key={selected.id} thread={selected} />
+            </ResizablePanel>
+          </>
+        )}
+        </ResizablePanelGroup>
       </div>
 
       <OptionsDialog

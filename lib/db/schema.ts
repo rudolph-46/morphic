@@ -3,6 +3,7 @@ import { InferSelectModel, sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   json,
@@ -13,6 +14,12 @@ import {
   timestamp,
   varchar
 } from 'drizzle-orm/pg-core'
+
+const bytea = customType<{ data: Buffer; default: false }>({
+  dataType() {
+    return 'bytea'
+  }
+})
 
 // Constants
 const ID_LENGTH = 191
@@ -806,6 +813,120 @@ export const linkedinMessages = pgTable(
 ).enableRLS()
 
 export type LinkedinMessage = InferSelectModel<typeof linkedinMessages>
+
+// Cached LinkedIn profile pictures, downloaded once and served from our own
+// origin to bypass LinkedIn CDN's signed-URL restrictions. Keyed by provider id
+// (the LinkedIn member URN-ish string) so the same person reuses one row across
+// threads.
+export const linkedinAvatars = pgTable(
+  'linkedin_avatars',
+  {
+    providerId: varchar('provider_id', { length: VARCHAR_LENGTH }).primaryKey(),
+    accountId: varchar('account_id', { length: VARCHAR_LENGTH }).notNull(),
+    mime: varchar('mime', { length: 64 }).notNull(),
+    bytes: bytea('bytes').notNull(),
+    sourceUrl: text('source_url'),
+    fetchedAt: timestamp('fetched_at').notNull().defaultNow()
+  },
+  table => [
+    index('linkedin_avatars_account_idx').on(table.accountId),
+    pgPolicy('linkedin_avatars_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_avatars_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('linkedin_avatars_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_avatars_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type LinkedinAvatar = InferSelectModel<typeof linkedinAvatars>
+
+// Cached LinkedIn profile (response from Unipile /users/{provider_id}).
+// One row per LinkedIn member; rehydrated on demand by the profile panel.
+export const linkedinProfiles = pgTable(
+  'linkedin_profiles',
+  {
+    providerId: varchar('provider_id', { length: VARCHAR_LENGTH }).primaryKey(),
+    accountId: varchar('account_id', { length: VARCHAR_LENGTH }).notNull(),
+    raw: jsonb('raw').$type<Record<string, unknown>>().notNull(),
+    fetchedAt: timestamp('fetched_at').notNull().defaultNow()
+  },
+  table => [
+    index('linkedin_profiles_account_idx').on(table.accountId),
+    pgPolicy('linkedin_profiles_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_profiles_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('linkedin_profiles_update_own', {
+      for: 'update',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('linkedin_profiles_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type LinkedinProfile = InferSelectModel<typeof linkedinProfiles>
+
+// Per-thread Melron chat history (scoped AI conversation about the person).
+export const inboxAiMessages = pgTable(
+  'inbox_ai_messages',
+  {
+    id: varchar('id', { length: ID_LENGTH })
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    threadId: varchar('thread_id', { length: ID_LENGTH })
+      .notNull()
+      .references(() => linkedinThreads.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 32, enum: ['user', 'assistant'] }).notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  table => [
+    index('inbox_ai_messages_thread_idx').on(table.threadId, table.createdAt),
+    pgPolicy('inbox_ai_messages_select_own', {
+      for: 'select',
+      to: 'public',
+      using: sql`true`
+    }),
+    pgPolicy('inbox_ai_messages_insert_own', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`
+    }),
+    pgPolicy('inbox_ai_messages_delete_own', {
+      for: 'delete',
+      to: 'public',
+      using: sql`true`
+    })
+  ]
+).enableRLS()
+
+export type InboxAiMessage = InferSelectModel<typeof inboxAiMessages>
 
 // Per-chat-request performance traces. Captured by the chat route to compare
 // before/after optimisations.
